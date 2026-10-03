@@ -63,10 +63,15 @@ async function handleRevoke(entry, sessionId, u) {
   const key = pm?.key || u.update?.key || u.key;
   if (!key?.id) return;
   const saved = msgCache.get(sessionId)?.get(key.id);
-  const chat = key.remoteJid;
+  const destMode = settingsMod.getAntidelMode();
+  // inbox mode = bot ke apne number par (message-yourself), warna wahi chat jahan delete hua
+  const chat = destMode === 'inbox'
+    ? (entry.sock.user?.id || '').split(':')[0] + '@s.whatsapp.net'
+    : key.remoteJid;
   if (!chat) return;
+  const srcChat = key.remoteJid === chat ? '' : `\n📍 *From:* ${key.remoteJid}`;
   const body = saved
-    ? `👤 +${saved.sender}${saved.push ? ` (${saved.push})` : ''}\n💬 ${saved.text || '(media ya khali message)'}`
+    ? `👤 +${saved.sender}${saved.push ? ` (${saved.push})` : ''}\n💬 ${saved.text || '(media ya khali message)'}${srcChat}`
     : null;
   await entry.sock.sendMessage(chat, { text: `🚫 *ANTIDELETE* — kisi ne message delete kiya\n${body || '(message record nahi tha — bot band tha us waqt)'}` }).catch(() => {});
 }

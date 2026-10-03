@@ -9,6 +9,7 @@ const toggles = new Map(Object.entries({
 }));
 const sudoUsers = new Set();
 const customTexts = { welcome: '', goodbye: '' };
+const antidelMode = { v: 'chat' }; // chat = wahi jagah jahan delete hua | inbox = bot ke apne number par
 const DEFAULT_WELCOME = '👋 Welcome *@user* — *{group}* me khush aamdeed! 🎉';
 const DEFAULT_GOODBYE = '👋 *@user* ne group chhora. Allah Hafiz!';
 
@@ -78,6 +79,12 @@ async function handler(m, sock) {
       if (!config.OWNER_NUMBERS.includes(num)) config.OWNER_NUMBERS.push(num);
       return m.reply(`✅ Owner number: +${num}`);
     }
+    case 'antidelmode': {
+      const v = (m.arg || '').toLowerCase().trim();
+      if (!['chat', 'inbox'].includes(v)) return m.reply(`ℹ️ Deleted messages kahan jayen?\n▫️ *${config.PREFIX}antidelmode chat* — wahi chat jahan delete hua\n▫️ *${config.PREFIX}antidelmode inbox* — bot ke apne number par (message-yourself)\n\nAbhi: *${antidelMode.v.toUpperCase()}*`);
+      antidelMode.v = v;
+      return m.reply(`✅ Antidelete destination: *${v.toUpperCase()}*`);
+    }
     case 'description': return m.reply(m.arg ? `✅ Description set: ${m.arg.slice(0, 80)}` : '❌ Text do.');
     case 'stickername': return m.reply(m.arg ? `✅ Sticker author: ${m.arg}` : '❌ Text do.');
     case 'delpath': return m.reply('🧹 Temp/session cache clear ho gayi (manual).');
@@ -100,6 +107,8 @@ const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistat
 module.exports.getToggle = (k) => toggles.get(k) || false;
 module.exports.getText = (k) => customTexts[k] || '';
 module.exports.isSudo = (num) => sudoUsers.has(num);
+module.exports.getAntidelMode = () => antidelMode.v;
+module.exports.setAntidelMode = (v) => { antidelMode.v = v === 'inbox' ? 'inbox' : 'chat'; };
 module.exports.commands = [
   ...TOGGLE_NAMES.map(n => ({ name: n, desc: `${n} ON/OFF`, category: 'SETTINGS', handler })),
   { name: 'sudo', desc: 'Sudo user add', category: 'SETTINGS', handler },
@@ -111,6 +120,7 @@ module.exports.commands = [
   { name: 'setwelcome', desc: 'Welcome text set', category: 'SETTINGS', handler },
   { name: 'setgoodbye', desc: 'Goodbye text set', category: 'SETTINGS', handler },
   { name: 'mode', desc: 'public/private mode', category: 'SETTINGS', handler },
+  { name: 'antidelmode', desc: 'antidelete destination: chat/inbox', category: 'SETTINGS', handler },
   { name: 'prefix', desc: 'Prefix change', category: 'SETTINGS', handler },
   { name: 'botname', desc: 'Bot ka naam', category: 'SETTINGS', handler },
   { name: 'ownername', desc: 'Owner ka naam', category: 'SETTINGS', handler },
