@@ -459,7 +459,17 @@ app.get('/', (req, res) => res.json({
   uptime: Math.floor((Date.now() - startAt) / 1000),
   commands: commands.size,
 }));
-app.listen(config.PORT, () => console.log(`[SAQI-MD] health endpoint on :${config.PORT}`));
+// EADDRINUSE-safe listen (Oct 3 fix): pehle port conflict par poora worker
+// crash hota tha -> 3 users ke sessions bhi gir jate the. Ab sirf health
+// endpoint skip hota hy, bot zinda rehta hy.
+const httpServer = app.listen(config.PORT, () => console.log(`[SAQI-MD] health endpoint on :${config.PORT}`));
+httpServer.on('error', (e) => {
+  if (e.code === 'EADDRINUSE') {
+    console.error(`[SAQI-MD] port ${config.PORT} already in use — health endpoint skip, bot chalta rahega`);
+  } else {
+    console.error('[SAQI-MD] http server error:', e.message);
+  }
+});
 
 // Pairing portal isi server par mount — EK service = pairing website + bot 24/7
 app.use(require('./server'));
