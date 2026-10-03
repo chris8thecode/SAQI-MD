@@ -14,7 +14,7 @@ FAST_FAIL_SECS=30
 while true; do
   MONGODB_URI=$(grep '^MONGODB_URI=' .env 2>/dev/null | cut -d= -f2-)
   export MONGODB_URI
-  MAX_SESSIONS=4 /workspace/tools/node22/bin/node worker.js >> saqi.log 2>&1 &
+  MAX_SESSIONS=8 /workspace/tools/node22/bin/node worker.js >> saqi.log 2>&1 &
   BOT_PID=$!
   echo "$BOT_PID" > saqi.pid
   START_TS=$(date +%s)
