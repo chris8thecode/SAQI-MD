@@ -4,13 +4,14 @@ const { fmtUptime } = require('../lib/functions');
 
 const startAt = Date.now();
 
-// poora registry dobara parhta hy (menu ke liye)
+// poora registry dobara parhta hy (menu ke liye) — path hamesha is file ke sath
 function collectCommands() {
   const fs = require('fs');
+  const path = require('path');
   const cats = {};
-  for (const f of fs.readdirSync('./commands').filter(x => x.endsWith('.js'))) {
+  for (const f of fs.readdirSync(__dirname).filter(x => x.endsWith('.js'))) {
     try {
-      const mod = require(`./commands/${f}`);
+      const mod = require(path.join(__dirname, f));
       for (const c of mod.commands) {
         if (c.hidden) continue;
         const cat = (c.category || 'GENERAL').toUpperCase();
