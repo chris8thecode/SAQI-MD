@@ -22,8 +22,8 @@ async function getApp() {
   const pino = require('pino');
   const config = require('./config');
   const { useMongoAuthState } = require('./lib/mongoSession');
-  // Baileys ESM-only — dynamic import har Node version par
-  const { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = await import('@whiskeysockets/baileys');
+  // Baileys ESM hy — pehle se bundle kiya hua CJS use karo (Vercel-proof)
+  const { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = require('./lib/baileys-bundle.cjs');
 
   const app = express();
   app.use(express.json());
