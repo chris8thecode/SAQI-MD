@@ -6,7 +6,8 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["lib/**", "commands/**", "public/**", "config.js", "package.json"]
+        "includeFiles": ["lib/**", "commands/**", "public/**", "config.js", "package.json"],
+        "maxDuration": 60
       }
     }
   ],
@@ -17,10 +18,5 @@
     { "src": "/health", "dest": "server.js" },
     { "src": "/style.css", "dest": "server.js" },
     { "src": "/(.*)", "dest": "server.js" }
-  ],
-  "functions": {
-    "server.js": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
