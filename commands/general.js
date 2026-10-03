@@ -2,6 +2,7 @@
  * (alive/uptime UTILITY me hain — JAWAD sequence ke mutabiq)
  */
 const config = require('../config');
+const { animeImage } = require('../lib/anime-pack');
 const { fmtUptime } = require('../lib/functions');
 
 const startAt = Date.now();
@@ -76,10 +77,9 @@ async function handler(m, sock) {
       return m.reply(`🌐 *FETCH*\n\n▫️ Status: ${res.status} ${res.statusText}\n▫️ Content-Type: ${res.headers.get('content-type') || '-'}\n\n\`\`\`${body.replace(/```/g, '')}\`\`\``);
     }
     case 'anime': {
-      try {
-        const r = await fetch('https://api.waifu.pics/sfw/waifu').then(r => r.json());
-        return sock.sendMessage(m.chat, { image: { url: r.url }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
-      } catch { return m.reply('❌ API down hy.'); }
+      const img = animeImage();
+      if (!img) return m.reply('❌ Image pack mojood nahi.');
+      return sock.sendMessage(m.chat, { image: { url: img }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
     }
   }
 }

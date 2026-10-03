@@ -1,5 +1,6 @@
 /* SAQI-MD — OTHER: getpp, mee, srepo, gpass, anime1-5, unban0-99 (ban system nahi — sab safe reply) */
 const config = require('../config');
+const { animeImage } = require('../lib/anime-pack');
 const { pick, pct } = require('../lib/helpers');
 
 async function getpp(m, sock) {
@@ -22,10 +23,9 @@ async function gpass(m, sock) {
 }
 
 async function animeN(m, sock) {
-  try {
-    const r = await fetch('https://api.waifu.pics/sfw/waifu').then(r => r.json());
-    return sock.sendMessage(m.chat, { image: { url: r.url }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
-  } catch { return m.reply('❌ API down hy.'); }
+  const img = animeImage();
+  if (!img) return m.reply('❌ Image pack mojood nahi.');
+  return sock.sendMessage(m.chat, { image: { url: img }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
 }
 
 async function unban(m, sock) {

@@ -2,6 +2,7 @@
  * .muth deliberately NAHI hy. boydp/girldp placeholder hain (files owner ke pas nahi).
  */
 const config = require('../config');
+const { animeImage } = require('../lib/anime-pack');
 const { pick, targetOf, mentionReply, pct } = require('../lib/helpers');
 
 const ROASTS = ['Tumhari tarah main bhi soch raha tha ke zindagi me kuch karna hy... phir maine sochna chhor diya. 😂', 'Wifi ka signal bhi tumse zyada strong hy. 📶', 'Tumhari profile photo dekh ke meri camera ne resign de diya. 📸', 'Tum utne slow ho ke snail bhi keh de "bhai race mat jeeto ge". 🐌', 'Brain chahiye tha tumhe, tumne WiFi router le liya. 🧠'];
@@ -89,10 +90,9 @@ async function handler(m, sock) {
       } catch { return m.reply(`🖼️ https://picsum.photos/seed/${Date.now()}/1200/800`); }
     }
     case 'cosplay': case 'animegirl': case 'animegirl1': case 'animegirl2': case 'animegirl3': case 'animegirl4': case 'animegirl5': {
-      try {
-        const r = await fetch('https://api.waifu.pics/sfw/waifu').then(r => r.json());
-        return sock.sendMessage(m.chat, { image: { url: r.url }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
-      } catch { return m.reply('❌ API down hy.'); }
+      const img = animeImage();
+      if (!img) return m.reply('❌ Image pack mojood nahi.');
+      return sock.sendMessage(m.chat, { image: { url: img }, caption: `🌸 ${config.BOT_NAME}` }, { quoted: m });
     }
     case 'dog': {
       try {

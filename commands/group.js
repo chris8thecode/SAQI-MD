@@ -17,6 +17,7 @@ const needAdmin = ['kick','promote','demote','mute','unmute','tagall','everyone'
 
 async function handler(m, sock) {
   const { command, arg, quoted } = m;
+  if (!m.isGroup) return m.reply('❌ Ye command sirf *groups* me chalti hy — kisi group me try karo.');
   if (needAdmin.includes(command) && !await isAdmin(sock, m.chat, m.sender)) {
     return m.reply('❌ Ye command sirf *group admins* ke liye hy.');
   }

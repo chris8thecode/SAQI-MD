@@ -1,24 +1,14 @@
 /* SAQI-MD — ANIME: waifu.pics / dog.ceo random images */
 const config = require('../config');
-const { pick } = require('../lib/helpers');
+const { animeImage } = require('../lib/anime-pack');
 
-const SOURCES = {
-  garl: 'https://api.waifu.pics/sfw/waifu',
-  waifu: 'https://api.waifu.pics/sfw/waifu',
-  neko: 'https://api.waifu.pics/sfw/neko',
-  megumin: 'https://api.waifu.pics/sfw/megumin',
-  maid: 'https://api.waifu.pics/sfw/waifu',
-  awoo: 'https://api.waifu.pics/sfw/awoo',
-};
+const SOURCES = { garl: 1, waifu: 1, neko: 1, megumin: 1, maid: 1, awoo: 1 };
 
 async function handler(m, sock) {
-  const url = SOURCES[m.command];
-  try {
-    const r = await fetch(url).then(r => r.json());
-    await sock.sendMessage(m.chat, { image: { url: r.url }, caption: `🌸 *${m.command.toUpperCase()}* — ${config.BOT_NAME}` }, { quoted: m });
-  } catch (e) {
-    await m.reply('❌ Image API down hy, thori dair baad try karo.');
-  }
+  if (!SOURCES[m.command]) return;
+  const img = animeImage();
+  if (!img) return m.reply('❌ Image pack mojood nahi.');
+  await sock.sendMessage(m.chat, { image: { url: img }, caption: `🌸 *${m.command.toUpperCase()}* — ${config.BOT_NAME}` }, { quoted: m });
 }
 
 module.exports.commands = Object.keys(SOURCES).map(name => ({
