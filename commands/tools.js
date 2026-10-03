@@ -1,4 +1,5 @@
 /* SAQI-MD — TOOLS: .vv2/.vv/.viewonce (view-once bypass), .sticker/.s */
+const config = require('../config');
 const { toSticker, toMP3 } = require('../lib/functions');
 
 // ---------- view-once extractor ----------
