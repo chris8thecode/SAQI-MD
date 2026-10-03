@@ -91,6 +91,7 @@ async function handler(m, sock) {
 
 const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistatus','antidelete','recording','statusview','autoreact','antical','anticalmsg','adminaction','autotyping','online','mentionreply'];
 
+module.exports.getToggle = (k) => toggles.get(k) || false;
 module.exports.commands = [
   ...TOGGLE_NAMES.map(n => ({ name: n, desc: `${n} ON/OFF`, category: 'SETTINGS', handler })),
   { name: 'sudo', desc: 'Sudo user add', category: 'SETTINGS', handler },

@@ -38,6 +38,38 @@ for (const f of require('fs').readdirSync('./commands').filter(x => x.endsWith('
 // sessionId -> { sock, reconnects, user, starting, dead }
 const sessions = new Map();
 let baileysVersion = null;
+// antidelete: har session ke akhri messages ki sada copy (messageId -> info)
+const msgCache = new Map();
+const settingsMod = require('./commands/settings.js');
+const getToggle = (k) => { try { return settingsMod.getToggle(k); } catch { return false; } };
+
+function cacheMessage(sessionId, raw, m) {
+  let cache = msgCache.get(sessionId);
+  if (!cache) { cache = new Map(); msgCache.set(sessionId, cache); }
+  cache.set(raw.key.id, {
+    chat: raw.key.remoteJid,
+    sender: (raw.key.participant || raw.key.remoteJid || '').split('@')[0],
+    push: m.pushname || '',
+    text: String(m.text || raw.message?.conversation || raw.message?.extendedTextMessage?.text || '').slice(0, 500),
+    t: Date.now(),
+  });
+  if (cache.size > 400) cache.delete(cache.keys().next().value);
+}
+
+async function handleRevoke(entry, sessionId, u) {
+  const pm = u.update?.message?.protocolMessage;
+  const isRevoke = u.update?.messageStubType === 68 || u.update?.messageStubType === 'REVOKE' || pm?.type === 'REVOKE' || pm?.type === 0;
+  if (!isRevoke || !getToggle('antidelete')) return;
+  const key = pm?.key || u.update?.key || u.key;
+  if (!key?.id) return;
+  const saved = msgCache.get(sessionId)?.get(key.id);
+  const chat = key.remoteJid;
+  if (!chat) return;
+  const body = saved
+    ? `👤 +${saved.sender}${saved.push ? ` (${saved.push})` : ''}\n💬 ${saved.text || '(media ya khali message)'}`
+    : null;
+  await entry.sock.sendMessage(chat, { text: `🚫 *ANTIDELETE* — kisi ne message delete kiya\n${body || '(message record nahi tha — bot band tha us waqt)'}` }).catch(() => {});
+}
 
 async function startSession(sessionId) {
   if (sessions.has(sessionId)) return;
@@ -95,11 +127,36 @@ async function startSession(sessionId) {
     entry.sock.ev.on('messages.upsert', async ({ messages, type }) => {
       if (type !== 'notify') return;
       for (const raw of messages) {
-        try { await handleMessage(entry.sock, raw); } catch (e) {
-          console.error(`[SAQI-MD] [${sessionId}] message error:`, e);
+        try {
+          // delete-revoke protocol message bhi yahan aa sakta hy
+          const pm = raw.message?.protocolMessage;
+          if (pm && (pm.type === 'REVOKE' || pm.type === 0)) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: pm }, key: pm.key } }); continue; }
+          if (raw.message?.ephemeralMessage?.message?.protocolMessage) { const p2 = raw.message.ephemeralMessage.message.protocolMessage; if (p2.type === 'REVOKE' || p2.type === 0) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: p2 }, key: p2.key } }); continue; } }
+
+          const m = smsg(sock, raw);
+          if (m.command || raw.key.remoteJid === 'status@broadcast') { try { await handleMessage(entry.sock, raw); } catch (e) { console.error(`[SAQI-MD] [${sessionId}] message error:`, e); } continue; }
+
+          // antidelete cache (sirf normal chats)
+          if (raw.key?.id) cacheMessage(sessionId, raw, m);
+
+          // antilink: group me link par message delete
+          if (getToggle('antilink') && m.text && /chat\.whatsapp\.com|https?:\/\//i.test(m.text) && String(raw.key.remoteJid).endsWith('@g.us') && !m.isOwner) {
+            try {
+              await sock.sendMessage(raw.key.remoteJid, { delete: raw.key });
+              await sock.sendMessage(raw.key.remoteJid, { text: `🚫 *Antilink* — link delete kar diya (${m.pushname || 'user'})` });
+            } catch {}
+            continue;
+          }
+
+          try { await handleMessage(entry.sock, raw); } catch (e) {
+            console.error(`[SAQI-MD] [${sessionId}] message error:`, e);
+          }
+        } catch (e) {
+          console.error(`[SAQI-MD] [${sessionId}] upsert error:`, e.message);
         }
       }
     });
+    entry.sock.ev.on('messages.update', (ups) => { for (const u of ups) { handleRevoke(entry, sessionId, u).catch(() => {}); } });
   } catch (e) {
     console.error(`[SAQI-MD] [${sessionId}] start fail:`, e.message);
     sessions.delete(sessionId);
