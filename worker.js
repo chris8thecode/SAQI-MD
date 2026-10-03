@@ -252,9 +252,12 @@ async function syncSessions() {
   try {
     const ids = await listSessionIds(config.MONGODB_URI, config.SESSION_PREFIX);
     for (const id of ids) {
-      if (!sessions.has(id) && sessions.size < config.MAX_SESSIONS) {
-        await startSession(id);
+      if (sessions.has(id)) continue;
+      if (sessions.size >= config.MAX_SESSIONS) {
+        console.error(`[SAQI-MD] session limit hit (${sessions.size}/${config.MAX_SESSIONS}) — ${id} skip ho gaya. MAX_SESSIONS barhao.`);
+        continue;
       }
+      await startSession(id);
     }
   } catch (e) {
     console.error('[SAQI-MD] session sync fail:', e.message);
