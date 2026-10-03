@@ -24,6 +24,7 @@ async function askGemini(prompt, imageBase64 = null) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 800 } }),
+        signal: AbortSignal.timeout(20000), // hang par agli model try — kabhi atka nahi
       });
       if (!res.ok) { lastErr = new Error(`AI API error ${res.status}`); continue; }
       const data = await res.json();
