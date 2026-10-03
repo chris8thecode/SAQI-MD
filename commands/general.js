@@ -29,6 +29,18 @@ async function handler(m, sock) {
   switch (m.command) {
     case 'menu':
     case 'help': {
+      // menu body (877 commands) sirf EK dafa render — phir cache se instant
+      if (!global.__menuBody) {
+        const cats0 = collectCommands();
+        let b = '';
+        for (const cat of ['AI','ANIME','AUDIO','DOWNLOAD','FUN','GROUP','LOGO','MAIN','OTHER','OWNER','SEARCH','SETTING','SETTINGS','SOUND','TOOLS','UTILITY']) {
+          if (!cats0[cat]) continue;
+          b += `\n\`『 ${cat} 』\`\n╭───────────────────⊷\n`;
+          b += cats0[cat].map(c => `*┋ ⬡ ${c.name}*`).join('\n');
+          b += `\n╰───────────────────⊷`;
+        }
+        global.__menuBody = b;
+      }
       const cats = collectCommands();
       let txt = `╭┈───〔 *${config.BOT_NAME}* 〕┈───⊷\n` +
         `├✦ *Owner:* ${config.OWNER_NAME}\n` +
@@ -37,12 +49,7 @@ async function handler(m, sock) {
         `├✦ *Prefix:* "${config.PREFIX}"\n` +
         `├✦ *Time:* ${new Date().toLocaleString('en-PK', { timeZone: config.TIMEZONE })}\n` +
         `╰───────────────────⊷\n`;
-      for (const cat of ['AI','ANIME','AUDIO','DOWNLOAD','FUN','GROUP','LOGO','MAIN','OTHER','OWNER','SEARCH','SETTING','SETTINGS','SOUND','TOOLS','UTILITY']) {
-        if (!cats[cat]) continue;
-        txt += `\n\`『 ${cat} 』\`\n╭───────────────────⊷\n`;
-        txt += cats[cat].map(c => `*┋ ⬡ ${c.name}*`).join('\n');
-        txt += `\n╰───────────────────⊷`;
-      }
+      txt += global.__menuBody;
       txt += `\n\n> *© Powered by ${config.OWNER_NAME}*`;
       return m.reply(txt);
     }

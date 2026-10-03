@@ -28,7 +28,7 @@ module.exports = {
 
   // ---- Worker (index.js) ----
   PORT: process.env.PORT || 3000,            // Koyeb health-check port
-  MAX_RECONNECTS: 10,
+  MAX_RECONNECTS: 50,
 
   // ---- Pairing portal (server.js) ----
   PAIR_SOCKET_TTL_MS: 3 * 60 * 1000,         // pairing socket itni dair zinda rahega (link hone ke liye)
