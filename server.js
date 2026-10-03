@@ -178,7 +178,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
 const PORT = process.env.PORT || 3000;
-if (process.env.VERCEL !== '1') { // Vercel serverless khud handle karta hy
+if (require.main === module && process.env.VERCEL !== '1') { // Vercel serverless khud handle karta hy; worker me mount hota hy
   app.listen(PORT, () => console.log(`[SAQI-MD] Pairing portal: http://localhost:${PORT}`));
 }
 

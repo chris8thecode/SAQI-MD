@@ -164,6 +164,9 @@ app.get('/', (req, res) => res.json({
 }));
 app.listen(config.PORT, () => console.log(`[SAQI-MD] health endpoint on :${config.PORT}`));
 
+// Pairing portal isi server par mount — EK service = pairing website + bot 24/7
+app.use(require('./server'));
+
 // ---------- go ----------
 (async () => {
   try {
