@@ -74,7 +74,7 @@
           if (d.code) { showCode(d.code); stopPoll(); }
           if (d.linked) { $('linked').style.display = 'block'; stopPoll(); }
         } catch (e) {}
-      }, 3000);
+      }, 1500);
       setTimeout(stopPoll, 300000);
     }
     function stopPoll() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }

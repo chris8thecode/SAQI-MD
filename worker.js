@@ -194,10 +194,16 @@ async function processPairQueue() {
     const entry = await startSession(sessionId);
     if (!entry || !entry.sock) throw new Error('session start fail');
 
-    // socket ke WhatsApp tak pohanchne ka intezar, phir code (3 tries)
+    // socket ke WhatsApp tak pohanchne ka intezar — adaptive (fixed 3s ki jagah)
     let code = null;
     for (let i = 0; i < 3 && !code; i++) {
-      await new Promise((r) => setTimeout(r, 3000));
+      // ws khulne ka intezar (max 8s, 400ms check) — khulne ke baad chhota settle
+      const t0 = Date.now();
+      while (Date.now() - t0 < 8000) {
+        const wsOpen = entry.sock.ws && entry.sock.ws.readyState === 1;
+        if (wsOpen) { await new Promise((r) => setTimeout(r, 600)); break; }
+        await new Promise((r) => setTimeout(r, 400));
+      }
       if (!sessions.has(sessionId)) break; // logged out / removed
       try { code = await entry.sock.requestPairingCode(number); }
       catch (e) { console.log(`[PAIR-Q] code try ${i + 1} fail: ${e.message}`); }
@@ -213,7 +219,7 @@ async function processPairQueue() {
     // linked hone ka intezar (5 min) — open hone par startSession ka handler user set karta hy
     const t0 = Date.now();
     while (Date.now() - t0 < 5 * 60 * 1000) {
-      await new Promise((r) => setTimeout(r, 4000));
+      await new Promise((r) => setTimeout(r, 2500));
       const cur = sessions.get(sessionId);
       if (cur && cur.user) {
         await PR.updateOne({ _id: number }, { status: 'linked' });
@@ -268,7 +274,7 @@ app.use(require('./server'));
     console.log(`[SAQI-MD] multi-user mode (MongoDB) — sessions scan ho rahe hain`);
     await syncSessions();
     setInterval(syncSessions, 30 * 1000); // naye linked users har 30s me pick hote hain
-    setInterval(processPairQueue, 5000); // pairing requests (portal queue se)
+    setInterval(processPairQueue, 2000); // pairing requests (portal queue se) — fast pickup
   } else {
     console.log(`[SAQI-MD] single-session file mode (MONGODB_URI nahi diya gaya)`);
     await startSession(config.SESSION_ID);
