@@ -135,7 +135,7 @@ async function handleMessage(sock, raw) {
   if (config.AUTO_READ) await sock.readMessages([raw.key]).catch(() => {});
 
   const cmd = commands.get(m.command);
-  if (!cmd) return;
+  if (!cmd) return m.reply(`❌ *${config.PREFIX}${m.command}* mojood nahi hy. Sahi naam ke liye *${config.PREFIX}menu* dekho.`);
   if (cmd.ownerOnly && !m.isOwner) return m.reply('❌ Ye command sirf *owner* ke liye hy.');
   if (cmd.groupOnly && !m.isGroup) return m.reply('❌ Ye command sirf *group* me chalti hy.');
 
