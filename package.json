@@ -4,7 +4,7 @@
   "description": "SAQI-MD WhatsApp Bot — Vercel pairing portal + MongoDB session + 24/7 worker",
   "main": "index.js",
   "type": "commonjs",
-  "engines": { "node": ">=20" },
+  "engines": { "node": "22.x" },
   "scripts": {
     "start": "node index.js",
     "pair": "node server.js"

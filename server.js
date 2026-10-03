@@ -19,14 +19,11 @@ async function getApp() {
   const express = require('express');
   const path = require('path');
   const crypto = require('crypto');
-  const {
-    default: makeWASocket,
-    fetchLatestBaileysVersion,
-    DisconnectReason,
-  } = require('@whiskeysockets/baileys');
   const pino = require('pino');
   const config = require('./config');
   const { useMongoAuthState } = require('./lib/mongoSession');
+  // Baileys ESM-only — dynamic import har Node version par
+  const { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = await import('@whiskeysockets/baileys');
 
   const app = express();
   app.use(express.json());

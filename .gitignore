@@ -3,3 +3,6 @@ session/
 sessions/
 .env
 *.log
+saqi.pid
+saqi.log
+guard.sh
