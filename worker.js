@@ -70,8 +70,10 @@ async function handleRevoke(entry, sessionId, u) {
     : key.remoteJid;
   if (!chat) return;
   const srcChat = key.remoteJid === chat ? '' : `\n📍 *From:* ${key.remoteJid}`;
+  const fmt = (t) => new Date(t).toLocaleString('en-PK', { timeZone: config.TIMEZONE || 'Asia/Karachi', hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
+  const now = Date.now();
   const body = saved
-    ? `👤 +${saved.sender}${saved.push ? ` (${saved.push})` : ''}\n💬 ${saved.text || '(media ya khali message)'}${srcChat}`
+    ? `👤 *Number:* +${saved.sender}${saved.push ? ` (${saved.push})` : ''}\n🕒 *Message ka waqt:* ${fmt(saved.t)}\n🕒 *Delete hua:* ${fmt(now)}\n💬 ${saved.text || '(media ya khali message)'}${srcChat}`
     : null;
   await entry.sock.sendMessage(chat, { text: `🚫 *ANTIDELETE* — kisi ne message delete kiya\n${body || '(message record nahi tha — bot band tha us waqt)'}` }).catch(() => {});
 }
