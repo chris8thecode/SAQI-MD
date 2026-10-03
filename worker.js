@@ -84,7 +84,7 @@ async function startSession(sessionId) {
       logger,
       printQRInTerminal: false,
       browser: ['Ubuntu', 'Chrome', '22.04.4'],
-      markOnlineOnConnect: true,
+      markOnlineOnConnect: getToggle('online') !== false,
       syncFullHistory: false,
     });
     entry.sock.ev.on('creds.update', saveCreds);
@@ -134,10 +134,34 @@ async function startSession(sessionId) {
           if (raw.message?.ephemeralMessage?.message?.protocolMessage) { const p2 = raw.message.ephemeralMessage.message.protocolMessage; if (p2.type === 'REVOKE' || p2.type === 0) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: p2 }, key: p2.key } }); continue; } }
 
           const m = smsg(sock, raw);
-          if (m.command || raw.key.remoteJid === 'status@broadcast') { try { await handleMessage(entry.sock, raw); } catch (e) { console.error(`[SAQI-MD] [${sessionId}] message error:`, e); } continue; }
+
+          // status @broadcast: statusview/statusemoji/statuslike/antistatus
+          if (String(raw.key.remoteJid) === 'status@broadcast') {
+            if (getToggle('antistatus')) continue; // status par bilkul react nahi
+            if (getToggle('statusview')) await sock.readMessages([raw.key]).catch(() => {});
+            const likeIt = getToggle('statuslike');
+            if (getToggle('statusemoji') || likeIt) {
+              const emo = likeIt ? '❤️' : ['❤️', '🔥', '👍', '😂', '😮', '🌈'][Math.floor(Math.random() * 6)];
+              await sock.sendMessage('status@broadcast', { react: { text: emo, key: raw.key } }).catch(() => {});
+            }
+            continue;
+          }
+
+          // autoreact: har aam message par reaction
+          if (getToggle('autoreact') && !m.command && !m.isOwner) {
+            await sock.sendMessage(m.chat, { react: { text: ['❤️', '🔥', '👍', '😂', '😮', '😢', '🙏'][Math.floor(Math.random() * 7)], key: raw.key } }).catch(() => {});
+          }
+
+          if (m.command) {
+            try { await handleMessage(entry.sock, raw); } catch (e) { console.error(`[SAQI-MD] [${sessionId}] message error:`, e); }
+            continue;
+          }
 
           // antidelete cache (sirf normal chats)
           if (raw.key?.id) cacheMessage(sessionId, raw, m);
+
+          // autoread toggle
+          if (getToggle('autoread')) await sock.readMessages([raw.key]).catch(() => {});
 
           // antilink: group me link par message delete
           if (getToggle('antilink') && m.text && /chat\.whatsapp\.com|https?:\/\//i.test(m.text) && String(raw.key.remoteJid).endsWith('@g.us') && !m.isOwner) {
@@ -148,15 +172,46 @@ async function startSession(sessionId) {
             continue;
           }
 
-          try { await handleMessage(entry.sock, raw); } catch (e) {
-            console.error(`[SAQI-MD] [${sessionId}] message error:`, e);
-          }
+          // mentionreply: aam messages par user ka zikr ke sath jawab nahi — ye sirf cache/autoread path hy
+          void m;
         } catch (e) {
           console.error(`[SAQI-MD] [${sessionId}] upsert error:`, e.message);
         }
       }
     });
     entry.sock.ev.on('messages.update', (ups) => { for (const u of ups) { handleRevoke(entry, sessionId, u).catch(() => {}); } });
+
+    // antical: call reject + anticalmsg: caller ko message
+    entry.sock.ev.on('call', async (calls) => {
+      for (const c of calls || []) {
+        try {
+          if (getToggle('antical') && c.from) await entry.sock.rejectCall(c.id, c.from).catch(() => {});
+          if (getToggle('anticalmsg') && c.from) await entry.sock.sendMessage(c.from, { text: '📵 Main abhi call receive nahi kar sakta — *message* karo, foran jawab milay ga.' }).catch(() => {});
+        } catch {}
+      }
+    });
+
+    // welcome/goodbye: group members aane/jaane par
+    entry.sock.ev.on('group-participants.update', async (u) => {
+      try {
+        if (u.action === 'add' && getToggle('welcome')) {
+          for (const p of u.participants || []) {
+            const num = p.split('@')[0];
+            const txt = (settingsMod.getText('welcome') || '👋 Welcome *@user* — *{group}* me khush aamdeed! 🎉')
+              .replaceAll('@user', num).replaceAll('{group}', 'Group');
+            await entry.sock.sendMessage(u.id, { text: txt, mentions: [p] }).catch(() => {});
+          }
+        }
+        if ((u.action === 'remove' || u.action === 'leave') && getToggle('goodbye')) {
+          for (const p of u.participants || []) {
+            const num = p.split('@')[0];
+            const txt = (settingsMod.getText('goodbye') || '👋 *@user* ne group chhora. Allah Hafiz!')
+              .replaceAll('@user', num);
+            await entry.sock.sendMessage(u.id, { text: txt, mentions: [p] }).catch(() => {});
+          }
+        }
+      } catch {}
+    });
   } catch (e) {
     console.error(`[SAQI-MD] [${sessionId}] start fail:`, e.message);
     sessions.delete(sessionId);
@@ -189,15 +244,30 @@ async function handleMessage(sock, raw) {
 
   const m = smsg(sock, raw);
   if (!m.command) return;
-  if (config.AUTO_READ) await sock.readMessages([raw.key]).catch(() => {});
+  if (config.AUTO_READ || getToggle('autoread')) await sock.readMessages([raw.key]).catch(() => {});
+
+  // private mode: sirf owner + sudo
+  const senderNum = (m.sender || '').split('@')[0];
+  if (config.MODE === 'private' && !m.isOwner && !settingsMod.isSudo(senderNum)) return;
+  // adminaction: groups me sirf admins ke commands
+  if (getToggle('adminaction') && m.isGroup && !m.isAdmin && !m.isOwner) return;
 
   const cmd = commands.get(m.command);
   if (!cmd) return m.reply(`❌ *${config.PREFIX}${m.command}* mojood nahi hy. Sahi naam ke liye *${config.PREFIX}menu* dekho.`);
   if (cmd.ownerOnly && !m.isOwner) return m.reply('❌ Ye command sirf *owner* ke liye hy.');
   if (cmd.groupOnly && !m.isGroup) return m.reply('❌ Ye command sirf *group* me chalti hy.');
 
+  // mentionreply: har reply ke shuru me user ka naam
+  if (getToggle('mentionreply') && m.pushname) {
+    const orig = m.reply.bind(m);
+    m.reply = (t, ...a) => orig(typeof t === 'string' ? `*@${m.pushname}*\n\n${t}` : t, ...a);
+  }
+
   console.log(`[CMD] ${m.command} | ${m.pushname} | ${m.isGroup ? 'group' : 'dm'}`);
   try {
+    // recording / autotyping presence
+    if (getToggle('recording')) await sock.sendPresenceUpdate('recording', m.chat).catch(() => {});
+    else if (getToggle('autotyping')) await sock.sendPresenceUpdate('composing', m.chat).catch(() => {});
     await cmd.handler(m, sock);
   } catch (e) {
     console.error(`[CMD-ERR] ${m.command}:`, e);
