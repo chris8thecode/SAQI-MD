@@ -6,7 +6,7 @@
       "src": "server.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["lib/**", "commands/**", "public/**", "config.js", "package.json"],
+        "includeFiles": "**",,
         "maxDuration": 60
       }
     }
