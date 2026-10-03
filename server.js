@@ -57,8 +57,10 @@ function holdServerlessAlive(ms) {
 async function createPairing(number) {
   closeActive();
   const id = crypto.randomBytes(8).toString('hex');
+  // multi-user: har number ka apna session — isi se worker use uthata hy
+  const sessionId = `${config.SESSION_PREFIX}:${number}`;
 
-  const { state, saveCreds } = await useMongoAuthState(config.MONGODB_URI, config.SESSION_ID);
+  const { state, saveCreds } = await useMongoAuthState(config.MONGODB_URI, sessionId);
   const { version } = await fetchLatestBaileysVersion();
 
   const sock = makeWASocket({

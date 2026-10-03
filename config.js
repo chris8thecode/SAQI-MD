@@ -14,7 +14,9 @@ module.exports = {
 
   // ---- MongoDB (session persistence) ----
   MONGODB_URI: process.env.MONGODB_URI || '', // mongodb+srv://user:pass@cluster.../?retryWrites=true
-  SESSION_ID: process.env.SESSION_ID || 'saqi-md-session', // ek bot instance = ek session id
+  SESSION_ID: process.env.SESSION_ID || 'saqi-md-session', // single-session (file) mode ke liye
+  SESSION_PREFIX: process.env.SESSION_PREFIX || 'SAQI', // multi-user mode: har user ka session = "SAQI:NUMBER"
+  MAX_SESSIONS: parseInt(process.env.MAX_SESSIONS || '8', 10), // Koyeb free (512MB) par ~6-8 theek
 
   // ---- Behaviour ----
   MODE: process.env.MODE || 'public',        // public | private (private = sirf owner)
