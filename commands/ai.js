@@ -11,7 +11,10 @@ const STYLE_NOTES = {
   grammar: 'Ye grammar check ka sawal hy — sahi karo aur galtiyan batao.',
 };
 
-const AI_MODELS = [config.GEMINI_MODEL, 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'].filter((v, i, a) => v && a.indexOf(v) === i);
+// Free-tier reality (measured Oct 3): gemini-3.6-flash aur gemini-3.5-flash ~10-20 requests ke
+// baad 429 de dete hyn, aur gemini-flash-latest 503 se bechain rehta hy. gemini-flash-lite-latest
+// sabse zyada requests bardasht karta hy aur foran recover karta hy — is liye wo PEHLE.
+const AI_MODELS = ['gemini-flash-lite-latest', config.GEMINI_MODEL, 'gemini-3.6-flash', 'gemini-3.5-flash'].filter((v, i, a) => v && a.indexOf(v) === i);
 
 async function askGemini(prompt, imageBase64 = null) {
   const parts = [{ text: prompt }];
