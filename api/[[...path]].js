@@ -4,13 +4,6 @@ var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __commonJS = (cb, mod) => function __require() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
-};
 var __copyProps = (to, from, except, desc) => {
   if (from && typeof from === "object" || typeof from === "function") {
     for (let key of __getOwnPropNames(from))
@@ -28,7 +21,15 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// config.js
+// api/[[...path]].js
+var __getOwnPropNames2 = Object.getOwnPropertyNames;
+var __commonJS = (cb, mod) => function __require() {
+  try {
+    return mod || (0, cb[__getOwnPropNames2(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
+};
 var require_config = __commonJS({
   "config.js"(exports2, module2) {
     require("dotenv").config();
@@ -75,27 +76,25 @@ var require_config = __commonJS({
     };
   }
 });
-
-// lib/baileys-bundle.cjs
 var require_baileys_bundle = __commonJS({
   "lib/baileys-bundle.cjs"(exports2, module2) {
     var __create2 = Object.create;
     var __defProp2 = Object.defineProperty;
     var __getOwnPropDesc2 = Object.getOwnPropertyDescriptor;
-    var __getOwnPropNames2 = Object.getOwnPropertyNames;
+    var __getOwnPropNames22 = Object.getOwnPropertyNames;
     var __getProtoOf2 = Object.getPrototypeOf;
     var __hasOwnProp2 = Object.prototype.hasOwnProperty;
     var __esm = (fn, res, err) => function __init() {
       if (err) throw err[0];
       try {
-        return fn && (res = (0, fn[__getOwnPropNames2(fn)[0]])(fn = 0)), res;
+        return fn && (res = (0, fn[__getOwnPropNames22(fn)[0]])(fn = 0)), res;
       } catch (e) {
         throw err = [e], e;
       }
     };
     var __commonJS2 = (cb, mod) => function __require() {
       try {
-        return mod || (0, cb[__getOwnPropNames2(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+        return mod || (0, cb[__getOwnPropNames22(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
       } catch (e) {
         throw mod = 0, e;
       }
@@ -106,7 +105,7 @@ var require_baileys_bundle = __commonJS({
     };
     var __copyProps2 = (to, from, except, desc) => {
       if (from && typeof from === "object" || typeof from === "function") {
-        for (let key of __getOwnPropNames2(from))
+        for (let key of __getOwnPropNames22(from))
           if (!__hasOwnProp2.call(to, key) && key !== except)
             __defProp2(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc2(from, key)) || desc.enumerable });
       }
@@ -165089,8 +165088,6 @@ ${val.stack}`;
     var index_default2 = Socket_default;
   }
 });
-
-// lib/mongoSession.js
 var require_mongoSession = __commonJS({
   "lib/mongoSession.js"(exports2, module2) {
     var mongoose = require("mongoose");
@@ -165167,8 +165164,6 @@ var require_mongoSession = __commonJS({
     module2.exports = { useMongoAuthState, listSessionIds, deleteSession };
   }
 });
-
-// server.js
 var require_server = __commonJS({
   "server.js"(exports2, module2) {
     var _app = null;
@@ -165342,8 +165337,6 @@ var require_server = __commonJS({
     }
   }
 });
-
-// api/[[...path]].js
 module.exports = require_server();
 /*! Bundled license information:
 

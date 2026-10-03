@@ -168,7 +168,7 @@ async function getApp() {
     res.json({ ok: true, status: e.status, code: e.code ? fmt(e.code) : null, linked: e.status === 'linked' });
   });
 
-  app.get('/health', (req, res) => res.json({ ok: true, service: 'saqi-md-pair', active: !!active }));
+  app.get('/health', (req, res) => res.json({ ok: true, service: 'saqi-md-pair', build: 'v17-fresh', active: !!active }));
   app.use(express.static(path.join(__dirname, 'public')));
   app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
