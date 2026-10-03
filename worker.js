@@ -138,23 +138,23 @@ async function startSession(sessionId) {
           if (pm && (pm.type === 'REVOKE' || pm.type === 0)) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: pm }, key: pm.key } }); continue; }
           if (raw.message?.ephemeralMessage?.message?.protocolMessage) { const p2 = raw.message.ephemeralMessage.message.protocolMessage; if (p2.type === 'REVOKE' || p2.type === 0) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: p2 }, key: p2.key } }); continue; } }
 
-          const m = smsg(sock, raw);
+          const m = smsg(entry.sock, raw);
 
           // status @broadcast: statusview/statusemoji/statuslike/antistatus
           if (String(raw.key.remoteJid) === 'status@broadcast') {
             if (getToggle('antistatus')) continue; // status par bilkul react nahi
-            if (getToggle('statusview')) await sock.readMessages([raw.key]).catch(() => {});
+            if (getToggle('statusview')) await entry.sock.readMessages([raw.key]).catch(() => {});
             const likeIt = getToggle('statuslike');
             if (getToggle('statusemoji') || likeIt) {
               const emo = likeIt ? '❤️' : ['❤️', '🔥', '👍', '😂', '😮', '🌈'][Math.floor(Math.random() * 6)];
-              await sock.sendMessage('status@broadcast', { react: { text: emo, key: raw.key } }).catch(() => {});
+              await entry.sock.sendMessage('status@broadcast', { react: { text: emo, key: raw.key } }).catch(() => {});
             }
             continue;
           }
 
           // autoreact: har aam message par reaction
           if (getToggle('autoreact') && !m.command && !m.isOwner) {
-            await sock.sendMessage(m.chat, { react: { text: ['❤️', '🔥', '👍', '😂', '😮', '😢', '🙏'][Math.floor(Math.random() * 7)], key: raw.key } }).catch(() => {});
+            await entry.sock.sendMessage(m.chat, { react: { text: ['❤️', '🔥', '👍', '😂', '😮', '😢', '🙏'][Math.floor(Math.random() * 7)], key: raw.key } }).catch(() => {});
           }
 
           if (m.command) {
@@ -166,13 +166,13 @@ async function startSession(sessionId) {
           if (raw.key?.id) cacheMessage(sessionId, raw, m);
 
           // autoread toggle
-          if (getToggle('autoread')) await sock.readMessages([raw.key]).catch(() => {});
+          if (getToggle('autoread')) await entry.sock.readMessages([raw.key]).catch(() => {});
 
           // antilink: group me link par message delete
           if (getToggle('antilink') && m.text && /chat\.whatsapp\.com|https?:\/\//i.test(m.text) && String(raw.key.remoteJid).endsWith('@g.us') && !m.isOwner) {
             try {
-              await sock.sendMessage(raw.key.remoteJid, { delete: raw.key });
-              await sock.sendMessage(raw.key.remoteJid, { text: `🚫 *Antilink* — link delete kar diya (${m.pushname || 'user'})` });
+              await entry.sock.sendMessage(raw.key.remoteJid, { delete: raw.key });
+              await entry.sock.sendMessage(raw.key.remoteJid, { text: `🚫 *Antilink* — link delete kar diya (${m.pushname || 'user'})` });
             } catch {}
             continue;
           }
