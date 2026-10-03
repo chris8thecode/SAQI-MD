@@ -8,3 +8,4 @@ saqi.log
 guard.sh
 .vercel
 .env*
+guard.sh.bak-*
