@@ -1,5 +1,7 @@
 #!/bin/sh
 # SAQI-MD multi-user guardian — Mongo ke sab sessions ko jaga kar rakhta hy
+exec 9>/tmp/.saqi-guard.lock
+flock -n 9 || { echo "guard already running — exit"; exit 0; }
 cd /workspace/saqi-md
 echo "=== saqi-md guard start $(date -u) ===" >> saqi.log
 while true; do

@@ -156,6 +156,12 @@ async function getApp() {
     try {
       if (config.MONGODB_URI) {
         const PR = await queueDB();
+        // dobara click par chalta hua request reset NAHI — chal rahi request ki
+        // current halat wapis karo (warna bana hua code gayab ho jata tha)
+        const ex = await PR.findById(number).lean().catch(() => null);
+        if (ex && (Date.now() - new Date(ex.createdAt).getTime()) < 10 * 60 * 1000 && ex.status !== 'error') {
+          return res.json({ ok: true, id: number, code: ex.code || null, status: ex.status });
+        }
         await PR.findOneAndUpdate(
           { _id: number },
           { number, status: 'pending', code: null, createdAt: new Date() },
