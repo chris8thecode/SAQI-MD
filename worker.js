@@ -41,6 +41,26 @@ let baileysVersion = null;
 // antidelete: har session ke akhri messages ki sada copy (messageId -> info)
 const msgCache = new Map();
 const settingsMod = require('./commands/settings.js');
+
+// ---------- SETTINGS PERSISTENCE (Mongo 'bot_settings' — restart se zinda) ----------
+const mgSettings = require('mongoose');
+if (config.MONGODB_URI) {
+  settingsMod.setOnPersist((snap) => {
+    mgSettings.connection.db.collection('bot_settings').updateOne(
+      { _id: 'global' },
+      { $set: { data: snap, updatedAt: new Date() } },
+      { upsert: true }
+    ).catch((e) => console.log('[SAQI-MD] settings save fail:', e.message));
+  });
+  (async () => {
+    try {
+      if (mgSettings.connection.readyState !== 1) await mgSettings.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+      const doc = await mgSettings.connection.db.collection('bot_settings').findOne({ _id: 'global' });
+      if (doc?.data) { settingsMod.restore(doc.data); console.log('[SAQI-MD] ✅ settings Mongo se restore (toggles/texts/sudo/antidelmode)'); }
+      else console.log('[SAQI-MD] settings: pehli dafa — defaults');
+    } catch (e) { console.log('[SAQI-MD] settings restore fail:', e.message); }
+  })();
+}
 const getToggle = (k) => { try { return settingsMod.getToggle(k); } catch { return false; } };
 
 function cacheMessage(sessionId, raw, m) {

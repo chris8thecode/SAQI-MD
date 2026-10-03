@@ -10,6 +10,20 @@ const toggles = new Map(Object.entries({
 const sudoUsers = new Set();
 const customTexts = { welcome: '', goodbye: '' };
 const antidelMode = { v: 'chat' }; // chat = wahi jagah jahan delete hua | inbox = bot ke apne number par
+
+// ---------- PERSISTENCE (Mongo — restart par settings zinda rehti hyn) ----------
+let onPersist = null;
+const persist = () => { try { onPersist && onPersist(snapshot()); } catch (e) {} };
+function snapshot() {
+  return { toggles: Object.fromEntries(toggles), sudo: [...sudoUsers], texts: { ...customTexts }, antidelMode: antidelMode.v };
+}
+function restore(sv) {
+  if (!sv) return;
+  for (const [k, v] of Object.entries(sv.toggles || {})) if (toggles.has(k)) toggles.set(k, !!v);
+  for (const n of sv.sudo || []) sudoUsers.add(String(n));
+  if (sv.texts) { customTexts.welcome = sv.texts.welcome || ''; customTexts.goodbye = sv.texts.goodbye || ''; }
+  if (sv.antidelMode) antidelMode.v = sv.antidelMode;
+}
 const DEFAULT_WELCOME = '👋 Welcome *@user* — *{group}* me khush aamdeed! 🎉';
 const DEFAULT_GOODBYE = '👋 *@user* ne group chhora. Allah Hafiz!';
 
@@ -17,6 +31,7 @@ function toggle(m, sock) {
   const key = m.command.toLowerCase();
   const val = !toggles.get(key);
   toggles.set(key, val);
+  persist();
   if (key === 'online' && sock) sock.sendPresenceUpdate(val ? 'available' : 'unavailable', m.chat).catch(() => {});
   return m.reply(`✅ ${m.command.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${key === 'antidelete' ? '\n🚫 Ab deleted messages wapis dikhenge.' : key === 'antilink' ? '\n🚫 Ab group me link bhejne par message delete hoga.' : ''}`);
 }
@@ -27,10 +42,12 @@ async function handler(m, sock) {
       const num = m.arg.replace(/[^0-9]/g, '');
       if (!num) return m.reply('❌ Number do.');
       sudoUsers.add(num);
+      persist();
       return m.reply(`✅ +${num} ab *SUDO* (trusted user) hy.`);
     }
     case 'delsudo': {
       sudoUsers.delete(m.arg.replace(/[^0-9]/g, ''));
+      persist();
       return m.reply('✅ Sudo hat gaya.');
     }
     case 'listsudo':
@@ -46,11 +63,13 @@ async function handler(m, sock) {
     case 'welcome': case 'setwelcome': {
       if (m.command === 'welcome') return m.reply(`ℹ️ Welcome: *${toggles.get('welcome') ? 'ON' : 'OFF'}*\n📝 Text: ${customTexts.welcome ? `"${customTexts.welcome.slice(0, 60)}"` : '(default)'}\n❓ ${config.PREFIX}setwelcome <text> se badlo — {group} aur @user use ho sakta hy.`);
       customTexts.welcome = m.arg || '';
+      persist();
       return m.reply(m.arg ? `✅ Welcome message set: "${m.arg.slice(0, 60)}"` : '❌ Text do.');
     }
     case 'goodbye': case 'setgoodbye': {
       if (m.command === 'goodbye') return m.reply(`ℹ️ Goodbye: *${toggles.get('goodbye') ? 'ON' : 'OFF'}*\n📝 Text: ${customTexts.goodbye ? `"${customTexts.goodbye.slice(0, 60)}"` : '(default)'}\n❓ ${config.PREFIX}setgoodbye <text> se badlo.`);
       customTexts.goodbye = m.arg || '';
+      persist();
       return m.reply(m.arg ? `✅ Goodbye message set: "${m.arg.slice(0, 60)}"` : '❌ Text do.');
     }
     case 'mode': {
@@ -83,6 +102,7 @@ async function handler(m, sock) {
       const v = (m.arg || '').toLowerCase().trim();
       if (!['chat', 'inbox'].includes(v)) return m.reply(`ℹ️ Deleted messages kahan jayen?\n▫️ *${config.PREFIX}antidelmode chat* — wahi chat jahan delete hua\n▫️ *${config.PREFIX}antidelmode inbox* — bot ke apne number par (message-yourself)\n\nAbhi: *${antidelMode.v.toUpperCase()}*`);
       antidelMode.v = v;
+      persist();
       return m.reply(`✅ Antidelete destination: *${v.toUpperCase()}*`);
     }
     case 'description': return m.reply(m.arg ? `✅ Description set: ${m.arg.slice(0, 80)}` : '❌ Text do.');
@@ -108,7 +128,10 @@ module.exports.getToggle = (k) => toggles.get(k) || false;
 module.exports.getText = (k) => customTexts[k] || '';
 module.exports.isSudo = (num) => sudoUsers.has(num);
 module.exports.getAntidelMode = () => antidelMode.v;
-module.exports.setAntidelMode = (v) => { antidelMode.v = v === 'inbox' ? 'inbox' : 'chat'; };
+module.exports.setAntidelMode = (v) => { antidelMode.v = v === 'inbox' ? 'inbox' : 'chat'; persist(); };
+module.exports.snapshot = snapshot;
+module.exports.restore = restore;
+module.exports.setOnPersist = (f) => { onPersist = f; };
 module.exports.commands = [
   ...TOGGLE_NAMES.map(n => ({ name: n, desc: `${n} ON/OFF`, category: 'SETTINGS', handler })),
   { name: 'sudo', desc: 'Sudo user add', category: 'SETTINGS', handler },
