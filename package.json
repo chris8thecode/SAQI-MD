@@ -1,0 +1,25 @@
+{
+  "name": "saqi-md",
+  "version": "1.0.0",
+  "description": "SAQI-MD WhatsApp Bot — Vercel pairing portal + MongoDB session + 24/7 worker",
+  "main": "index.js",
+  "type": "commonjs",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node index.js",
+    "pair": "node server.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
+    "awesome-phonenumber": "^7.5.0",
+    "axios": "^1.7.9",
+    "baileys": "^7.0.0-rc14",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "fluent-ffmpeg": "^2.1.3",
+    "mongoose": "^8.9.5",
+    "node-fetch": "^3.3.2",
+    "pino": "^9.5.0",
+    "qrcode-terminal": "^0.12.0"
+  }
+}

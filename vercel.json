@@ -1,0 +1,26 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "version": 2,
+  "builds": [
+    {
+      "src": "server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": ["lib/**", "commands/**", "public/**", "config.js", "package.json"]
+      }
+    }
+  ],
+  "routes": [
+    { "src": "/api/pair", "dest": "server.js" },
+    { "src": "/pair", "dest": "server.js" },
+    { "src": "/api/status/(.*)", "dest": "server.js" },
+    { "src": "/health", "dest": "server.js" },
+    { "src": "/style.css", "dest": "server.js" },
+    { "src": "/(.*)", "dest": "server.js" }
+  ],
+  "functions": {
+    "server.js": {
+      "maxDuration": 60
+    }
+  }
+}
