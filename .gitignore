@@ -6,3 +6,5 @@ sessions/
 saqi.pid
 saqi.log
 guard.sh
+.vercel
+.env*
