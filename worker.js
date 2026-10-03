@@ -280,7 +280,25 @@ async function handleMessage(sock, raw) {
   if (getToggle('adminaction') && m.isGroup && !m.isAdmin && !m.isOwner) return;
 
   const cmd = commands.get(m.command);
-  if (!cmd) return m.reply(`❌ *${config.PREFIX}${m.command}* mojood nahi hy. Sahi naam ke liye *${config.PREFIX}menu* dekho.`);
+  if (!cmd) {
+    // fuzzy suggest: user ki ghalat command ke sab se qareeb sahi command
+    const q = m.command.toLowerCase();
+    const lev = (a, b) => {
+      const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+      for (let j = 0; j <= b.length; j++) d[0][j] = j;
+      for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      return d[a.length][b.length];
+    };
+    const scored = [...commands.keys()].map((name) => {
+      let s = lev(q, name);
+      if (name.includes(q) || q.includes(name)) s = Math.min(s, Math.abs(name.length - q.length)); // substring = strong
+      return [name, s];
+    }).sort((a, b) => a[1] - b[1]);
+    const top = scored.slice(0, 3).filter(([n, s]) => s <= Math.max(3, Math.floor(q.length / 2)));
+    const hint = top.length ? `\n\n💡 Kya murad tha:\n${top.map(([n]) => `▫️ *${config.PREFIX}${n}*`).join('\n')}` : `\n\n💡 Sahi naam ke liye *${config.PREFIX}menu* dekho.`;
+    return m.reply(`❌ *${config.PREFIX}${m.command}* mojood nahi hy.${hint}`);
+  }
   if (cmd.ownerOnly && !m.isOwner) return m.reply('❌ Ye command sirf *owner* ke liye hy.');
   if (cmd.groupOnly && !m.isGroup) return m.reply('❌ Ye command sirf *group* me chalti hy.');
 
