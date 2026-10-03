@@ -141,7 +141,7 @@ async function getApp() {
       await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
     }
     if (!_prModel) {
-      const s = new mongoose.Schema({ number: String, status: String, code: String, createdAt: Date }, { collection: 'pair_requests' });
+      const s = new mongoose.Schema({ _id: String, number: String, status: String, code: String, createdAt: Date }, { collection: 'pair_requests' });
       _prModel = mongoose.models.PairRequest || mongoose.model('PairRequest', s);
     }
     return _prModel;
