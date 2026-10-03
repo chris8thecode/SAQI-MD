@@ -281,6 +281,18 @@ async function handleMessage(sock, raw) {
 
   const cmd = commands.get(m.command);
   if (!cmd) {
+    // common alternate naam — seedha sahi command par bhej do
+    const ALIASES = {
+      autorecording: 'recording', autotype: 'autotyping', autodelete: 'antidelete',
+      antidel: 'antidelete', antideletemode: 'antidelmode',
+      delmode: 'antidelmode', anticall: 'antical', autorespond: 'autoreply',
+      welkom: 'welcome', goodbye2: 'goodbye', stiker: 'sticker', stc: 'sticker',
+      ytd: 'video', ytl: 'song', yt: 'video', weather: 'wthr', ai2: 'ai', bot: 'menu',
+      cmd: 'menu', commands: 'menu', help: 'menu', halp: 'menu',
+    };
+    const alias = ALIASES[m.command.toLowerCase()];
+    const ac = alias && commands.get(alias);
+    if (ac) return ac.handler({ ...m, command: alias });
     // fuzzy suggest: user ki ghalat command ke sab se qareeb sahi command
     const q = m.command.toLowerCase();
     const lev = (a, b) => {
