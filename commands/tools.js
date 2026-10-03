@@ -15,7 +15,7 @@ async function viewOnce(m, sock) {
   // quoted ke through download (viewOnce flag par koi farq nahi — raw data mil jata hy)
   const streamPkg = require('@whiskeysockets/baileys');
   const type = msg.imageMessage ? 'image' : msg.videoMessage ? 'video' : 'audio';
-  const stream = streamPkg.downloadContentFromMessage(inner, type);
+  const stream = await streamPkg.downloadContentFromMessage(inner, type);
   const chunks = [];
   for await (const c of stream) chunks.push(c);
   const buf = Buffer.concat(chunks);
@@ -45,7 +45,7 @@ async function sticker(m, sock) {
     const msgObj = m.quoted.message;
     const inner = msgObj.imageMessage || msgObj.videoMessage;
     const streamPkg = require('@whiskeysockets/baileys');
-    const stream = streamPkg.downloadContentFromMessage(inner, isVideo ? 'video' : 'image');
+    const stream = await streamPkg.downloadContentFromMessage(inner, isVideo ? 'video' : 'image');
     const chunks = [];
     for await (const c of stream) chunks.push(c);
     buffer = Buffer.concat(chunks);
