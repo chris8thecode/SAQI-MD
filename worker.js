@@ -268,12 +268,28 @@ async function handleMessage(sock, raw) {
     m.reply = (t, ...a) => orig(typeof t === 'string' ? `*@${m.pushname}*\n\n${t}` : t, ...a);
   }
 
+  // ---------- PREMIUM SPEED ----------
+  // self-learning: jo command 1.2s se zyada le, agle par foran "⚡ Processing..." ack
+  const slowCmds = global.__slowCmds || (global.__slowCmds = new Set(
+    // starter set (network/media commands pehli dafa se hi instant ack)
+    ['song','play','music','video','ytmp3','ytmp4','tiktok','tiktoksearch','facebook','fb','instagram','igdl','ig','capcut','gdrive','mediafire','megadl','apk','ai','gpt','gemini','chatgpt','sticker','s','attp','tomp3','tts','quote']
+  ));
+  if (slowCmds.has(m.command)) {
+    await sock.sendMessage(m.chat, { text: `⚡ *Processing...*` }, { quoted: m }).catch(() => {});
+  }
+
   console.log(`[CMD] ${m.command} | ${m.pushname} | ${m.isGroup ? 'group' : 'dm'}`);
   try {
     // recording / autotyping presence
     if (getToggle('recording')) await sock.sendPresenceUpdate('recording', m.chat).catch(() => {});
     else if (getToggle('autotyping')) await sock.sendPresenceUpdate('composing', m.chat).catch(() => {});
+    const t0 = Date.now();
     await cmd.handler(m, sock);
+    const dt = Date.now() - t0;
+    if (dt > 1200 && !slowCmds.has(m.command)) {
+      slowCmds.add(m.command);
+      console.log(`[SPEED] ${m.command} slow (${dt}ms) — ab instant ack milega`);
+    }
   } catch (e) {
     console.error(`[CMD-ERR] ${m.command}:`, e);
     await m.reply(`❌ *Error* aya tha command me — owner ko bata diya jayega.\n\`\`\`${String(e.message).slice(0, 120)}\`\`\``).catch(() => {});
