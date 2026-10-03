@@ -5,7 +5,7 @@ echo "=== saqi-md guard start $(date -u) ===" >> saqi.log
 while true; do
   MONGODB_URI=$(grep '^MONGODB_URI=' .env 2>/dev/null | cut -d= -f2-)
   export MONGODB_URI
-  MAX_SESSIONS=4 /workspace/tools/node22/bin/node index.js >> saqi.log 2>&1 &
+  MAX_SESSIONS=4 /workspace/tools/node22/bin/node worker.js >> saqi.log 2>&1 &
   BOT_PID=$!
   echo "$BOT_PID" > saqi.pid
   wait $BOT_PID

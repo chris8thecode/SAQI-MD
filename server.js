@@ -130,6 +130,23 @@ async function getApp() {
     }
   }
 
+  // ---------- Mongo pair-queue (Vercel 60s cap ka hal) ----------
+  // Vercel serverless par baileys socket 60s me mar jata hy — is liye pairing ka
+  // asli kaam 24/7 worker karta hy. Portal sirf request queue karta hy aur code
+  // Mongo se uthata hy. File-mode (bina Mongo) par purana direct flow chalta hy.
+  const mongoose = require('mongoose');
+  let _prModel = null;
+  async function queueDB() {
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+    }
+    if (!_prModel) {
+      const s = new mongoose.Schema({ number: String, status: String, code: String, createdAt: Date }, { collection: 'pair_requests' });
+      _prModel = mongoose.models.PairRequest || mongoose.model('PairRequest', s);
+    }
+    return _prModel;
+  }
+
   // ---------- routes ----------
   app.post('/api/pair', async (req, res) => {
     const number = String(req.body?.number || '').replace(/[^0-9]/g, '');
@@ -137,6 +154,15 @@ async function getApp() {
       return res.json({ ok: false, error: 'Number ghalat hy — country code ke sath likho (e.g. 92300XXXXXXX)' });
     }
     try {
+      if (config.MONGODB_URI) {
+        const PR = await queueDB();
+        await PR.findOneAndUpdate(
+          { _id: number },
+          { number, status: 'pending', code: null, createdAt: new Date() },
+          { upsert: true }
+        );
+        return res.json({ ok: true, id: number, code: null, status: 'pending' });
+      }
       const entry = await createPairing(number);
       if (entry.code) return res.json({ ok: true, id: entry.id, code: fmt(entry.code) });
       res.json({ ok: true, id: entry.id, code: null, status: entry.status });
@@ -159,7 +185,17 @@ async function getApp() {
     }
   });
 
-  app.get('/api/status/:id', (req, res) => {
+  app.get('/api/status/:id', async (req, res) => {
+    try {
+      if (config.MONGODB_URI) {
+        const PR = await queueDB();
+        const doc = await PR.findById(req.params.id).lean().catch(() => null);
+        if (!doc) return res.json({ ok: false, status: 'expired' });
+        return res.json({ ok: true, status: doc.status, code: doc.code || null, linked: doc.status === 'linked' });
+      }
+    } catch (e) {
+      return res.json({ ok: false, status: 'expired' });
+    }
     const e = pairings.get(req.params.id);
     if (!e) return res.json({ ok: false, status: 'expired' });
     if (!e.code && e.status !== 'linked' && Date.now() - e.createdAt < 90 * 1000) {

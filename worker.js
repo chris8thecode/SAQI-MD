@@ -148,6 +148,97 @@ async function handleMessage(sock, raw) {
   }
 }
 
+// ---------- pairing queue (Vercel 60s cap ka hal) ----------
+// Portal (Vercel) sirf pair_requests me 'pending' doc dalta hy; ASLI pairing socket
+// yahan 24/7 worker par chalta hy — koi 60s limit nahi, is liye "could not link"
+// wala masla khatam. Doc statuses: pending -> ready (code mil gaya) -> linked / error.
+const mongoose = require('mongoose');
+let _prModel = null;
+function pairModel() {
+  if (!_prModel) {
+    const s = new mongoose.Schema({ number: String, status: String, code: String, createdAt: Date }, { collection: 'pair_requests' });
+    _prModel = mongoose.models.PairRequest || mongoose.model('PairRequest', s);
+  }
+  return _prModel;
+}
+const fmtCode = (c) => String(c).match(/.{1,4}/g).join('-');
+let pairingBusy = false;
+
+async function processPairQueue() {
+  if (!config.MONGODB_URI || pairingBusy) return;
+  pairingBusy = true;
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+    }
+    const PR = pairModel();
+
+    // purane adhoore requests ki safai (15 min se purana)
+    await PR.deleteMany({ createdAt: { $lt: new Date(Date.now() - 15 * 60 * 1000) } });
+
+    const pend = await PR.find({ status: 'pending', createdAt: { $gte: new Date(Date.now() - 10 * 60 * 1000) } })
+      .sort({ createdAt: 1 }).limit(1).lean();
+    if (!pend.length) return;
+    const doc = pend[0];
+    const number = doc.number;
+    const sessionId = `${config.SESSION_PREFIX}:${number}`;
+
+    // already linked? (dobara pair karne ki koshish)
+    const existing = sessions.get(sessionId);
+    if (existing && existing.user) {
+      await PR.updateOne({ _id: number }, { status: 'linked' });
+      return;
+    }
+
+    console.log(`[PAIR-Q] ${number} ke liye pairing socket start`);
+    const entry = await startSession(sessionId);
+    if (!entry || !entry.sock) throw new Error('session start fail');
+
+    // socket ke WhatsApp tak pohanchne ka intezar, phir code (3 tries)
+    let code = null;
+    for (let i = 0; i < 3 && !code; i++) {
+      await new Promise((r) => setTimeout(r, 3000));
+      if (!sessions.has(sessionId)) break; // logged out / removed
+      try { code = await entry.sock.requestPairingCode(number); }
+      catch (e) { console.log(`[PAIR-Q] code try ${i + 1} fail: ${e.message}`); }
+    }
+    if (!code) {
+      await PR.updateOne({ _id: number }, { status: 'error' });
+      console.log(`[PAIR-Q] ${number} — code nahi ban saka`);
+      return; // session rehta hy; sync/loggedOut khud safai karega
+    }
+    await PR.updateOne({ _id: number }, { code: fmtCode(code), status: 'ready' });
+    console.log(`[PAIR-Q] ${number} -> ${fmtCode(code)}`);
+
+    // linked hone ka intezar (5 min) — open hone par startSession ka handler user set karta hy
+    const t0 = Date.now();
+    while (Date.now() - t0 < 5 * 60 * 1000) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const cur = sessions.get(sessionId);
+      if (cur && cur.user) {
+        await PR.updateOne({ _id: number }, { status: 'linked' });
+        console.log(`[PAIR-Q] ${number} LINKED ✅`);
+        return;
+      }
+      if (!cur) break; // session khatam (loggedOut)
+    }
+
+    // timeout — adhoori pairing ki safai (creds + socket)
+    const cur = sessions.get(sessionId);
+    if (cur && !cur.user) {
+      sessions.delete(sessionId);
+      await deleteSession(config.MONGODB_URI, sessionId).catch(() => {});
+      try { cur.sock.end(); } catch {}
+      await PR.updateOne({ _id: number }, { status: 'error' }).catch(() => {});
+      console.log(`[PAIR-Q] ${number} — pairing timeout, safai ho gayi`);
+    }
+  } catch (e) {
+    console.error('[PAIR-Q] error:', e.message);
+  } finally {
+    pairingBusy = false;
+  }
+}
+
 // ---------- anti-crash ----------
 process.on('uncaughtException', (e) => console.error('[uncaught]', e));
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
@@ -177,6 +268,7 @@ app.use(require('./server'));
     console.log(`[SAQI-MD] multi-user mode (MongoDB) — sessions scan ho rahe hain`);
     await syncSessions();
     setInterval(syncSessions, 30 * 1000); // naye linked users har 30s me pick hote hain
+    setInterval(processPairQueue, 5000); // pairing requests (portal queue se)
   } else {
     console.log(`[SAQI-MD] single-session file mode (MONGODB_URI nahi diya gaya)`);
     await startSession(config.SESSION_ID);
