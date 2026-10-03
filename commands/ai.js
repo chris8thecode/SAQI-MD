@@ -11,18 +11,28 @@ const STYLE_NOTES = {
   grammar: 'Ye grammar check ka sawal hy — sahi karo aur galtiyan batao.',
 };
 
+const AI_MODELS = [config.GEMINI_MODEL, 'gemini-3.6-flash', 'gemini-3.5-flash', 'gemini-flash-latest'].filter((v, i, a) => v && a.indexOf(v) === i);
+
 async function askGemini(prompt, imageBase64 = null) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.GEMINI_MODEL}:generateContent?key=${config.GEMINI_API_KEY}`;
   const parts = [{ text: prompt }];
   if (imageBase64) parts.push({ inline_data: { mime_type: 'image/jpeg', data: imageBase64 } });
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 800 } }),
-  });
-  if (!res.ok) throw new Error(`AI API error ${res.status}`);
-  const data = await res.json();
-  return data.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('') || '❌ Koi jawab nahi mila.';
+  let lastErr;
+  for (const model of AI_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts }], generationConfig: { maxOutputTokens: 800 } }),
+      });
+      if (!res.ok) { lastErr = new Error(`AI API error ${res.status}`); continue; }
+      const data = await res.json();
+      const text = data.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('');
+      if (text) return text;
+      lastErr = new Error('Koi jawab nahi mila');
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error('AI API error');
 }
 
 async function downloadImageBase64(msg) {
