@@ -6,7 +6,7 @@
   "type": "commonjs",
   "engines": { "node": "24.x" },
   "scripts": {
-    "start": "node index.js",
+    "start": "node worker.js",
     "pair": "node server.js"
   },
   "dependencies": {
