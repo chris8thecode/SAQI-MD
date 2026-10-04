@@ -51,10 +51,28 @@ async function handler(m, sock) {
       return m.reply(`ℹ️ *${config.BOT_NAME} info*\n▫️ Mode: ${sessions}\n▫️ Owner: ${config.OWNER_NAME}\n▫️ Prefix: ${config.PREFIX}`);
     }
     case 'block': case 'unblock': {
-      const num = (m.quoted ? m.quoted.key.participant : m.arg).replace(/[^0-9]/g, '');
-      if (!num) return m.reply('❌ Number do ya reply karo.');
-      await sock.updateBlockStatus(num + '@s.whatsapp.net', m.command === 'block' ? 'block' : 'unblock');
-      return m.reply(`${m.command === 'block' ? '🚫' : '✅'} +${num} ${m.command}ed.`);
+      const rawP = (m.quoted ? (m.quoted.key.participant || m.quoted.participant) : m.arg) || '';
+      const num = String(rawP).replace(/[^0-9]/g, '');
+      if (!num || num.length < 7) return m.reply('❌ Number do (country code ke sath) ya kisi message par reply karo.');
+      const action = m.command === 'block' ? 'block' : 'unblock';
+      const pn = num + '@s.whatsapp.net';
+      // pehle verify: number WhatsApp par hy bhi ya nahi
+      try {
+        const w = await sock.onWhatsApp(num);
+        if (!w || !w.length || !w[0].exists) return m.reply(`❌ +${num} WhatsApp par active nahi hy.`);
+      } catch {}
+      try {
+        await sock.updateBlockStatus(pn, action);
+      } catch (e) {
+        // LID mapping us waqt resolve nahi hui — ek retry (USync delay ho sakta hy)
+        await new Promise(r => setTimeout(r, 1000));
+        try {
+          await sock.updateBlockStatus(pn, action);
+        } catch (e2) {
+          return m.reply(`❌ +${num} ${action} nahi ho paya: WhatsApp ne LID resolve nahi ki (number shayad WhatsApp par nahi, ya server ne jawab nahi diya). Thori dair baad dobara try karo.`);
+        }
+      }
+      return m.reply(`${action === 'block' ? '🚫' : '✅'} +${num} ${action}ed.`);
     }
     case 'pair': {
       const num = m.arg.replace(/[^0-9]/g, '');
