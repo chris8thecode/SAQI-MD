@@ -7,8 +7,10 @@ const { fmtUptime } = require('../lib/functions');
 
 const startAt = Date.now();
 
-// poora registry dobara parhta hy (menu ke liye) — path hamesha is file ke sath
+// category cache — registry boot ke baad static, dobara scan nahi karna
+let __cats = null;
 function collectCommands() {
+  if (__cats) return __cats;
   const fs = require('fs');
   const path = require('path');
   const cats = {};
@@ -22,36 +24,55 @@ function collectCommands() {
       }
     } catch {}
   }
+  __cats = cats;
   return cats;
+}
+
+const MENU_PER_PAGE = 220;
+function catBody(cat, page) {
+  const list = collectCommands()[cat] || [];
+  const pages = Math.ceil(list.length / MENU_PER_PAGE);
+  page = Math.max(1, Math.min(page || 1, pages));
+  const slice = list.slice((page - 1) * MENU_PER_PAGE, page * MENU_PER_PAGE);
+  let b = `\`\`\`\n${slice.map(c => '. ' + c.name).join('\n')}\`\`\``;
+  if (pages > 1) b += `\n▸ Page ${page}/${pages} — .menu ${cat.toLowerCase()} ${page + 1}`;
+  return b;
 }
 
 async function handler(m, sock) {
   switch (m.command) {
     case 'menu':
     case 'help': {
-      // menu body (877 commands) sirf EK dafa render — phir cache se instant
-      if (!global.__menuBody) {
-        const cats0 = collectCommands();
-        let b = '';
-        for (const cat of ['AI','ANIME','AUDIO','DOWNLOAD','FUN','GROUP','LOGO','MAIN','OTHER','OWNER','SEARCH','SETTING','SETTINGS','SOUND','TOOLS','UTILITY']) {
-          if (!cats0[cat]) continue;
-          b += `\n\`『 ${cat} 』\`\n╭───────────────────⊷\n`;
-          b += cats0[cat].map(c => `*┋ ⬡ ${c.name}*`).join('\n');
-          b += `\n╰───────────────────⊷`;
-        }
-        global.__menuBody = b;
-      }
       const cats = collectCommands();
-      let txt = `╭┈───〔 *${config.BOT_NAME}* 〕┈───⊷\n` +
-        `├✦ *Owner:* ${config.OWNER_NAME}\n` +
-        `├✦ *Commands:* ${Object.values(cats).reduce((a, c) => a + c.length, 0)}\n` +
-        `├✦ *Uptime:* ${fmtUptime(Math.floor((Date.now() - startAt) / 1000))}\n` +
-        `├✦ *Prefix:* "${config.PREFIX}"\n` +
-        `├✦ *Time:* ${new Date().toLocaleString('en-PK', { timeZone: config.TIMEZONE })}\n` +
-        `╰───────────────────⊷\n`;
-      txt += global.__menuBody;
-      txt += `\n\n> *© Powered by ${config.OWNER_NAME}*`;
-      return m.reply(txt);
+      const total = Object.values(cats).reduce((a, c) => a + c.length, 0);
+      if (!m.arg) {
+        // NAYA FONT: saaf monospace index — poora list ek message me nahi (13k commands)
+        const idx = Object.keys(cats).sort()
+          .map(cat => `◆ ${cat} — ${cats[cat].length}`)
+          .join('\n');
+        const txt = `╭─〔 *${config.BOT_NAME}* 〕─────⊷\n` +
+          `┊ ✦ Owner: ${config.OWNER_NAME}\n` +
+          `┊ ✦ Commands: ${total}\n` +
+          `┊ ✦ Uptime: ${fmtUptime(Math.floor((Date.now() - startAt) / 1000))}\n` +
+          `┊ ✦ Prefix: "${config.PREFIX}"\n` +
+          `╰──────────────────⊷\n\n` +
+          `📚 *CATEGORIES*\n${idx}\n\n` +
+          `▸ Category ki commands: ${config.PREFIX}menu <naam>\n` +
+          `▸ Har command ki detail: ${config.PREFIX}details <naam>\n\n` +
+          `> *© Powered by ${config.OWNER_NAME}*`;
+        return m.reply(txt);
+      }
+      // .menu <category> [page]
+      const parts = m.arg.trim().split(/\s+/);
+      const want = parts[0].toUpperCase();
+      const cat = Object.keys(cats).find(c => c === want || c.replace(/\s+/g, '') === want);
+      if (!cat) {
+        const matches = Object.keys(cats).filter(c => c.includes(want));
+        return m.reply(`❌ Category "${parts[0]}" nahi mili.${matches.length ? `\nKya matlab tha: ${matches.join(', ')}` : ''}\nSab dekhne ke liye: ${config.PREFIX}menu`);
+      }
+      const body = catBody(cat, parseInt(parts[1]) || 1);
+      const count = cats[cat].length;
+      return m.reply(`╭─〔 *${cat}* 〕─ ${count} commands ─⊷\n${body}\n> ${config.BOT_NAME}`);
     }
 
     case 'ping':
