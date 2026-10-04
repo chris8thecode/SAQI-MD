@@ -556,16 +556,15 @@ app.get('/livetest', async (req, res) => {
   const toNum = String(req.query.to || '').replace(/[^0-9]/g, '');
   const targetJid = toNum ? toNum + '@s.whatsapp.net' : (String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net');
   const replys = [];
-  const seenJids = [];
+  const caps = [];
   const mkCap = (tag) => ({ messages }) => {
     for (const raw of messages) {
       try {
-        const rj = String(raw.key.remoteJid);
-        if (seenJids.length < 6 && (rj.includes(toNum) || (!toNum && rj.includes(String(entry.sock.user.id).split(':')[0].split('@')[0].split(':')[0])))) seenJids.push(tag + ':' + rj + ':fromMe=' + !!raw.key.fromMe);
-        const match = toNum ? (rj === targetJid && !raw.key.fromMe) : (rj === targetJid && raw.key.fromMe);
-        if (!match) continue;
         const t = raw.message?.conversation || raw.message?.extendedTextMessage?.text || raw.message?.imageMessage?.caption || '';
-        if (t) replys.push(t);
+        if (!t) continue;
+        caps.push(tag + '|fm=' + !!raw.key.fromMe + '|' + String(raw.key.remoteJid).slice(0, 24) + '|' + t.slice(0, 60));
+        const fromBot = toNum ? !raw.key.fromMe : raw.key.fromMe;
+        if (fromBot) replys.push(t);
       } catch {}
     }
   };
