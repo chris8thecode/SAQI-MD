@@ -42,7 +42,7 @@ async function handler(m, sock) {
   if (RELATIONS[cmd]) {
     return mentionReply(m, sock, `🏷️ @${who} tumhara *${RELATIONS[cmd]}* hy! ${pick(['Mubarak ho 😂', 'Congrats 🎉', 'Wow 🎊'])}`);
   }
-  if (['hug','kiss','slap','punch','pat','wave','poke','highfive','highfives','dance','laugh','cry','smile','wink','blush','angry','sad','sleep','stare','confused','bored','yawn','shocked','scared','surprised','shy','cool','celebrate','yay','run','think','bite','feed','cuddle','facepalm','shoot','clap','salute','thumbsup','yes','no','sorry','happy','nod','nope','shake','handshake','carry','tickle','smug','pout','tired','sigh','sip','bleh','nom','nya','peck','teehhee','yeet','kill','bully','cringe','glomp','bonk','baka','kabedon','nuzzle','headbang','nosebleed','tableflip','spin','shrug','lurk','blowkiss','handhold','stop'].includes(cmd)) {
+  if (['hug','kiss','slap','punch','pat','wave','poke','highfive','highfives','dance','laugh','cry','smile','wink','blush','angry','sad','sleep','stare','confused','bored','yawn','shocked','scared','surprised','shy','cool','celebrate','yay','run','think','bite','feed','cuddle','facepalm','shoot','clap','salute','thumbsup','yes','no','sorry','happy','nod','nope','shake','handshake','carry','tickle','smug','pout','tired','sigh','sip','bleh','nom','nya','peck','teehee','teehhee','yeet','kill','bully','cringe','glomp','bonk','baka','kabedon','nuzzle','headbang','nosebleed','tableflip','spin','shrug','lurk','blowkiss','handhold','stop','chumi'].includes(cmd)) {
     return mentionReply(m, sock, `@${who} ${cmd} 😂`);
   }
 
@@ -115,17 +115,17 @@ const NAMES = [
   'pet','servant','idol','fan','ghost','angel','devil','king','queen','slave','master','fool',
   'rich','poor','bhai','bahan','wife','husband','chacha','chachi','nana','nani','mama','mami','bestfriend',
   'enemy','crush','teacher','student','rival','runmureed','flirt','quote','cosplay','joke','bacha','bachi',
-  'technologica','taroun','cake','pickup','sigma','rizz','simp','vibe','rate','shipname','dice','coin','fact',
+  'technologia','technologica','taroun','cake','pickup','sigma','rizz','simp','vibe','rate','shipname','dice','coin','fact',
   'chad','npc','maincharacter','delulu','redflag','greenflag','truth','dare','wyr','horoscope','lurk','marige',
   'shoot','sleep','clap','shrug','stare','wave','poke','confused','smile','peck','wink','sip','blush','smug',
-  'tickle','yeet','think','highfive','feed','bite','teehhee','shocked','bleh','bored','nom','nya','yawn',
+  'tickle','yeet','think','highfive','feed','bite','teehee','teehhee','shocked','bleh','bored','nom','nya','yawn',
   'facepalm','cuddle','happy','carry','hug','kabedon','baka','bonk','pat','angry','spin','shake','run','nod',
   'nope','kiss','dance','punch','handshake','slap','cry','pout','blowkiss','handhold','salute','thumbsup',
   'laugh','tableflip','yes','no','stop','sorry','sad','scared','surprised','tired','sigh','shy','nuzzle',
-  'cool','celebrate','yay','headbang','nosebleed','bully','cringe','kill','glomp',
+  'cool','celebrate','yay','headbang','nosebleed','bully','cringe','kill','glomp','chumi',
   ...Array.from({ length: 22 }, (_, i) => `boydp${i + 1}`),
   ...Array.from({ length: 22 }, (_, i) => `girldp${i + 1}`),
-  'repeat','shayari','animegirl','animegirl1','animegirl2','animegirl3','animegirl4','animegirl5','dog',
+  'muth','repeat','shayari','animegirl','animegirl1','animegirl2','animegirl3','animegirl4','animegirl5','dog',
 ];
 
 // dedupe (yes/no/duplicate entries)

@@ -129,7 +129,7 @@ async function handler(m, sock) {
   }
 }
 
-const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistatus','antidelete','recording','autorecording','statusview','autoreact','autostatus','antical','anticalmsg','adminaction','autotyping','online','mentionreply'];
+const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistatus','antidelete','recording','autorecording','statusview','autoreact','autostatus','antical','anticalmsg','anticall','anticallmsg','adminaction','autotyping','online','mentionreply'];
 
 // user jo naam likhta hy → asli toggle key (alias map)
 const TOGGLE_ALIASES = {
@@ -140,6 +140,9 @@ const TOGGLE_ALIASES = {
   autorec: 'recording',
   antidel: 'antidelete',
   autocall: 'antical',
+  anticall: 'antical',
+  anticallmsg: 'anticalmsg',
+  anticallmessage: 'anticalmsg',
 };
 
 module.exports.getToggle = (k) => toggles.get(k) || false;
