@@ -508,28 +508,29 @@ async function processPairQueue() {
     await PR.updateOne({ _id: number }, { code: fmtCode(code), status: 'ready' });
     console.log(`[PAIR-Q] ${number} -> ${fmtCode(code)}`);
 
-    // linked hone ka intezar (5 min) — open hone par startSession ka handler user set karta hy
-    const t0 = Date.now();
-    while (Date.now() - t0 < 5 * 60 * 1000) {
-      await new Promise((r) => setTimeout(r, 2500));
-      const cur = sessions.get(sessionId);
-      if (cur && cur.user) {
-        await PR.updateOne({ _id: number }, { status: 'linked' });
-        console.log(`[PAIR-Q] ${number} LINKED ✅`);
-        return;
+    // linked hone ka intezar (5 min) — BACKGROUND me (v5.4.1: queue block na ho, agla number foran)
+    (async () => {
+      const tw = Date.now();
+      while (Date.now() - tw < 5 * 60 * 1000) {
+        await new Promise((r) => setTimeout(r, 2500));
+        const cur = sessions.get(sessionId);
+        if (cur && cur.user) {
+          await PR.updateOne({ _id: number }, { status: 'linked' }).catch(() => {});
+          console.log(`[PAIR-Q] ${number} LINKED ✅`);
+          return;
+        }
+        if (!cur) break; // session khatam (loggedOut)
       }
-      if (!cur) break; // session khatam (loggedOut)
-    }
-
-    // timeout — adhoori pairing ki safai (creds + socket)
-    const cur = sessions.get(sessionId);
-    if (cur && !cur.user) {
-      sessions.delete(sessionId);
-      await deleteSession(config.MONGODB_URI, sessionId).catch(() => {});
-      try { cur.sock.end(); } catch {}
-      await PR.updateOne({ _id: number }, { status: 'error' }).catch(() => {});
-      console.log(`[PAIR-Q] ${number} — pairing timeout, safai ho gayi`);
-    }
+      const cur = sessions.get(sessionId);
+      if (cur && !cur.user) {
+        sessions.delete(sessionId);
+        await deleteSession(config.MONGODB_URI, sessionId).catch(() => {});
+        try { cur.sock.end(); } catch {}
+        await PR.updateOne({ _id: number }, { status: 'error' }).catch(() => {});
+        console.log(`[PAIR-Q] ${number} — pairing timeout, safai ho gayi`);
+      }
+    })().catch(() => {});
+    return;
   } catch (e) {
     console.error('[PAIR-Q] error:', e.message);
   } finally {
