@@ -46,7 +46,7 @@ async function handler(m, sock) {
     case 'setonline': {
       return m.reply('ℹ️ Bot connected hone par automatically online show hota hy.');
     }
-    case 'groupsprivacy': {
+    case 'groupsprivacy': case 'groupprivacy': {
       const val = (m.arg || '').toLowerCase();
       if (!['all', 'contacts', 'contact_blacklist', 'known', 'none'].includes(val)) {
         return m.reply(`ℹ️ Groups add permission. Example: ${config.PREFIX}groupsprivacy contacts\n(all / contacts / contact_blacklist / known / none)`);
@@ -66,5 +66,6 @@ module.exports.commands = [
   { name: 'setppall', desc: 'Bot ki DP lagao (reply)', category: 'SETTING', handler },
   { name: 'setonline', desc: 'Online status info', category: 'SETTING', handler },
   { name: 'groupsprivacy', desc: 'Group add privacy', category: 'SETTING', handler },
+  { name: 'groupprivacy', desc: 'Group add privacy', category: 'SETTING', handler },
   { name: 'getprivacy', desc: 'Privacy settings dekho', category: 'SETTING', handler },
 ];

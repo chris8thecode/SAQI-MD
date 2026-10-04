@@ -167,6 +167,7 @@ async function handler(m, sock) {
       return m.reply(`📦 *${r.name}* v${v}\n📝 ${r.versions[v]?.description || '-'}\n🔗 ${r.versions[v]?.dist?.tarball || ''}`);
     }
     case 'sticker': case 's': return stickerCmd(m, sock, false);
+    case 'tssticker': case 'textsticker': return textStickerCmd(m, sock);
     case 'attp': {
       if (!m.arg) return m.reply(`❌ Text do. Example: ${config.PREFIX}attp Hello`);
       const out = tmpFile('webp');
@@ -193,6 +194,24 @@ async function handler(m, sock) {
 }
 
 function pctBar() { return Math.floor(Math.random() * 30) + 70 + '%'; }
+
+async function textStickerCmd(m, sock) {
+  const txt = (m.arg || '').trim();
+  if (!txt) return m.reply(`❌ Text likho. Example: ${config.PREFIX}tssticker Salam`);
+  const { execFile } = require('child_process');
+  const os = require('os'), path = require('path'), fs = require('fs');
+  const out = path.join(os.tmpdir(), `ts_${Date.now()}.webp`);
+  const safe = txt.replace(/[\\':%]/g, ' ').slice(0, 60);
+  const font = fs.existsSync('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
+    ? '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf' : '';
+  const vf = `drawtext=${font ? `fontfile=${font}:` : ''}text='${safe}':fontcolor=white:fontsize=48:x=(w-text_w)/2:y=(h-text_h)/2`;
+  await new Promise((res, rej) => {
+    execFile('ffmpeg', ['-y', '-f', 'lavfi', '-i', 'color=c=0x1f8a70:s=512x512', '-vf', vf, '-frames:v', '1', out],
+      (e) => e ? rej(e) : res());
+  });
+  await sock.sendMessage(m.chat, { sticker: fs.readFileSync(out) }, { quoted: m });
+  try { fs.unlinkSync(out); } catch {}
+}
 
 async function stickerCmd(m, sock, attp) {
   const msg = m.message?.imageMessage ? m.message : m.quoted?.message;
@@ -240,6 +259,7 @@ module.exports.commands = [
   { name: 'npm', desc: 'npm package info', category: 'TOOLS', handler },
   { name: 'font', desc: 'Fancy font', category: 'TOOLS', handler },
   { name: 'sticker', desc: 'Photo/video → sticker', category: 'TOOLS', handler },
+  { name: 'tssticker', desc: 'Text → sticker', category: 'TOOLS', handler },
   { name: 's', desc: 'Sticker (short)', category: 'TOOLS', handler },
   { name: 'attp', desc: 'Text → sticker', category: 'TOOLS', handler },
   ...Array.from({ length: 16 }, (_, i) => ({ name: `upscale${i + 1}`, desc: 'Image upscale', category: 'TOOLS', handler })),
