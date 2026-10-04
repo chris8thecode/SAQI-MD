@@ -39,6 +39,39 @@ global.__SAQI_CMD_GET = (name) => commands.get(String(name || '').toLowerCase())
 global.__SAQI_CMDS_ALL = commands;
 global.__SAQI_STATS = { startedAt: startAt, commandCount: commands.size, sessions: 0 };
 
+// ---------- v5.2.1: known-contacts collector (status viewers + posters + chats) ----------
+const { kvSet, kvGet } = require('./lib/xhelp');
+const _seen = new Map(); // sessionId -> { viewers:Set, chats:Set }
+function seenBucket(sessionId) {
+  if (!_seen.has(sessionId)) _seen.set(sessionId, { viewers: new Set(), chats: new Set(), dirty: false });
+  return _seen.get(sessionId);
+}
+function seenViewer(sessionId, jid) {
+  if (!jid) return;
+  try { const s = String(jid); if (!s.includes('@')) return; const b = seenBucket(sessionId); b.viewers.add(s); b.dirty = true; } catch {}
+}
+function seenChat(sessionId, jid) {
+  if (!jid) return;
+  try {
+    const s = String(jid);
+    if (s === 'status@broadcast' || s === '0@s.whatsapp.net') return;
+    const b = seenBucket(sessionId); b.chats.add(s); b.dirty = true;
+  } catch {}
+}
+setInterval(async () => {
+  try {
+    for (const [sessionId, b] of _seen) {
+      if (!b.dirty) continue;
+      b.dirty = false;
+      const vs = [...b.viewers].slice(0, 20000), cs = [...b.chats].slice(0, 5000);
+      const old = await kvGet('x3seen:' + sessionId + ':viewers', []);
+      await kvSet('x3seen:' + sessionId + ':viewers', [...new Set([...(old || []), ...vs])].slice(-20000));
+      const oc = await kvGet('x3seen:' + sessionId + ':chats', []);
+      await kvSet('x3seen:' + sessionId + ':chats', [...new Set([...(oc || []), ...cs])].slice(-5000));
+    }
+  } catch (e) { console.log('[SAQI-MD] seen-flush fail:', e.message); }
+}, 60000).unref();
+
 // ---------- multi-session registry ----------
 // sessionId -> { sock, reconnects, user, starting, dead }
 const sessions = new Map();
@@ -181,9 +214,11 @@ async function startSession(sessionId) {
           if (raw.message?.ephemeralMessage?.message?.protocolMessage) { const p2 = raw.message.ephemeralMessage.message.protocolMessage; if (p2.type === 'REVOKE' || p2.type === 0) { await handleRevoke(entry, sessionId, { update: { message: { protocolMessage: p2 }, key: p2.key } }); continue; } }
 
           const m = smsg(entry.sock, raw);
+          seenChat(sessionId, raw.key.remoteJid); // har chat (individual + group) collect
 
           // status @broadcast: statusview/statusemoji/statuslike/antistatus
           if (String(raw.key.remoteJid) === 'status@broadcast') {
+            seenViewer(sessionId, raw.key.participant); // status poster ko yaad rakho
             if (getToggle('antistatus')) continue; // status par bilkul react nahi
             if (getToggle('statusview')) await entry.sock.readMessages([raw.key]).catch(() => {});
             const likeIt = getToggle('statuslike');
@@ -226,7 +261,13 @@ async function startSession(sessionId) {
         }
       }
     });
-    entry.sock.ev.on('messages.update', (ups) => { for (const u of ups) { handleRevoke(entry, sessionId, u).catch(() => {}); } });
+    entry.sock.ev.on('messages.update', (ups) => { for (const u of ups) {
+      try { // status viewer receipt: participant = jis ne mera status dekha
+        const k = u.key || {};
+        if (String(k.remoteJid) === 'status@broadcast' && k.participant) seenViewer(sessionId, k.participant);
+      } catch {}
+      handleRevoke(entry, sessionId, u).catch(() => {});
+    } });
 
     // antical: call reject + anticalmsg: caller ko message
     entry.sock.ev.on('call', async (calls) => {
