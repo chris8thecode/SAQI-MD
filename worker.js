@@ -556,10 +556,12 @@ app.get('/livetest', async (req, res) => {
   const toNum = String(req.query.to || '').replace(/[^0-9]/g, '');
   const targetJid = toNum ? toNum + '@s.whatsapp.net' : (String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net');
   const replys = [];
-  const onMsg = ({ messages }) => {
+  const seenJids = [];
+  const mkCap = (tag) => ({ messages }) => {
     for (const raw of messages) {
       try {
         const rj = String(raw.key.remoteJid);
+        if (seenJids.length < 6 && (rj.includes(toNum) || (!toNum && rj.includes(String(entry.sock.user.id).split(':')[0].split('@')[0].split(':')[0])))) seenJids.push(tag + ':' + rj + ':fromMe=' + !!raw.key.fromMe);
         const match = toNum ? (rj === targetJid && !raw.key.fromMe) : (rj === targetJid && raw.key.fromMe);
         if (!match) continue;
         const t = raw.message?.conversation || raw.message?.extendedTextMessage?.text || raw.message?.imageMessage?.caption || '';
@@ -567,7 +569,11 @@ app.get('/livetest', async (req, res) => {
       } catch {}
     }
   };
-  entry.sock.ev.on('messages.upsert', onMsg);
+  const cap1 = mkCap('from');
+  entry.sock.ev.on('messages.upsert', cap1);
+  const tEntry = toNum ? sessions.get('SAQI:' + toNum) : null;
+  const cap2 = tEntry ? mkCap('target') : null;
+  if (cap2) tEntry.sock.ev.on('messages.upsert', cap2);
   try {
     await Promise.race([
       entry.sock.sendMessage(targetJid, { text }, {}),
@@ -575,8 +581,9 @@ app.get('/livetest', async (req, res) => {
     ]);
   } catch {}
   await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
-  entry.sock.ev.off('messages.upsert', onMsg);
-  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4) });
+  entry.sock.ev.off('messages.upsert', cap1);
+  if (cap2) tEntry.sock.ev.off('messages.upsert', cap2);
+  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4), debug: seenJids });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
