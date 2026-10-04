@@ -62,20 +62,20 @@ function tempCmd(m, sock, name) {
 }
 
 /* ---------- city clocks ---------- */
-const TZC = global.__X4_TZ || {};
+const TZC = () => global.__X4_TZ || {};
 function timeCityCmd(m, sock, name) {
   const city = name.slice(4);
-  const tz = TZC[city];
+  const tz = TZC()[city];
   if (!tz) return m.reply('❌ ' + city + ' ka timezone nahi pata.');
   const now = new Date().toLocaleString('en-GB', { timeZone: tz, dateStyle: 'medium', timeStyle: 'short' });
   return m.reply('🕐 *' + city.toUpperCase() + '*\n' + now + '\n▫️ Timezone: ' + tz);
 }
 
 /* ---------- namaz ---------- */
-const NAMAZ = global.__X4_NAMAZ || {};
+const NAMAZ = () => global.__X4_NAMAZ || {};
 async function namazCmd(m, sock, name) {
   const city = name.slice(5);
-  const e = NAMAZ[city];
+  const e = NAMAZ()[city];
   if (!e) return m.reply('❌ ' + city + ' ki timings nahi pata.');
   const j = await xfetch('https://api.aladhan.com/v1/timingsByCity?city=' + encodeURIComponent(e[0]) + '&country=' + encodeURIComponent(e[1]) + '&method=1').then(r => r.text()).then(JSON.parse);
   const t = j && j.data && j.data.timings;
@@ -85,21 +85,30 @@ async function namazCmd(m, sock, name) {
 }
 
 /* ---------- wikipedia per language ---------- */
-const WLANG = global.__X4_WLANG || {};
+const WLANG = () => global.__X4_WLANG || {};
 async function wikiCmd(m, sock, name) {
-  const lang = WLANG[name];
+  const lang = WLANG()[name];
   const q = String(m.arg || '').trim();
   if (!q) return m.reply('📖 .' + name + ' <topic> — ' + lang + ' Wikipedia se summary.\nExample: .' + name + ' Pakistan');
-  const u = 'https://' + lang + '.wikipedia.org/api/rest_v1/page/summary/' + encodeURIComponent(q.split(/\s+/).join('_'));
-  const j = await xfetch(u).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { return null; } });
-  if (!j || !j.extract) return m.reply('❌ "' + q + '" par kuch nahi mila (' + lang + ' wiki).');
-  return m.reply('📖 *' + j.title + '* (' + lang + ' Wikipedia)\n\n' + j.extract.slice(0, 900) + (j.content_urls ? '\n🔗 ' + j.content_urls.desktop.page : ''));
+  const u0 = 'https://' + lang + '.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&format=json&formatversion=2&redirects=1&titles=' + encodeURIComponent(q.split(/\s+/).join('_'));
+  let j = await xfetch(u0).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { return null; } });
+  let pg = j && j.query && j.query.pages && j.query.pages[0];
+  // title nahi mila (doosri zubaan) — pehle search karo, phir us page ka extract lo
+  if (!pg || pg.missing || !pg.extract) {
+    const s = await xfetch('https://' + lang + '.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + encodeURIComponent(q) + '&format=json&formatversion=2&srlimit=1').then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { return null; } });
+    const hit = s && s.query && s.query.search && s.query.search[0];
+    if (!hit) return m.reply('❌ "' + q + '" par kuch nahi mila (' + lang + ' wiki).');
+    j = await xfetch('https://' + lang + '.wikipedia.org/w/api.php?action=query&prop=extracts&exintro&explaintext&format=json&formatversion=2&redirects=1&titles=' + encodeURIComponent(hit.title)).then(r => r.text()).then(t => { try { return JSON.parse(t); } catch { return null; } });
+    pg = j && j.query && j.query.pages && j.query.pages[0];
+  }
+  if (!pg || !pg.extract) return m.reply('❌ "' + q + '" par kuch nahi mila (' + lang + ' wiki).');
+  return m.reply('📖 *' + pg.title + '* (' + lang + ' Wikipedia)\n\n' + String(pg.extract).slice(0, 900) + '\n🔗 https://' + lang + '.wikipedia.org/wiki/' + encodeURIComponent(String(pg.title).split(/\s+/).join('_')));
 }
 
 /* ---------- translate per language ---------- */
-const TLANG = global.__X4_TLANG || {};
+const TLANG = () => global.__X4_TLANG || {};
 async function trCmd(m, sock, name) {
-  const code = TLANG[name];
+  const code = TLANG()[name];
   const q = String(m.arg || '').trim();
   if (!q) return m.reply('🌐 .' + name + ' <text> — ' + name.slice(2) + ' me translate.\nExample: .' + name + ' kaise ho bhai');
   const u = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(q.slice(0, 400)) + '&langpair=en|' + code;
@@ -152,7 +161,7 @@ global.__X4_TZ = {'karachi':'Asia/Karachi','lahore':'Asia/Karachi','islamabad':'
 global.__X4_NAMAZ = {'karachi':['Karachi','Pakistan'],'lahore':['Lahore','Pakistan'],'islamabad':['Islamabad','Pakistan'],'multan':['Multan','Pakistan'],'layyah':['Layyah','Pakistan'],'peshawar':['Peshawar','Pakistan'],'quetta':['Quetta','Pakistan'],'faisalabad':['Faisalabad','Pakistan'],'makkah':['Mecca','Saudi Arabia'],'madinah':['Medina','Saudi Arabia'],'riyadh':['Riyadh','Saudi Arabia'],'dubai':['Dubai','UAE'],'doha':['Doha','Qatar'],'kuwaitcity':['Kuwait City','Kuwait'],'muscat':['Muscat','Oman'],'baghdad':['Baghdad','Iraq'],'istanbul':['Istanbul','Turkey'],'cairo':['Cairo','Egypt'],'delhi':['New Delhi','India'],'dhaka':['Dhaka','Bangladesh'],'london':['London','United Kingdom'],'paris':['Paris','France'],'berlin':['Berlin','Germany'],'newyork':['New York','US'],'toronto':['Toronto','Canada'],'sydney':['Sydney','Australia'],'tokyo':['Tokyo','Japan']};
 global.__X4_WLANG = {'wikenglish':'en','wikurdu':'ur','wikarabic':'ar','wikhindi':'hi','wikspanish':'es','wikfrench':'fr','wikgerman':'de','wikchinese':'zh','wikjapanese':'ja','wikkorean':'ko','wikrussian':'ru','wikturkish':'tr','wikportuguese':'pt','wikitalian':'it','wikdutch':'nl','wikpolish':'pl','wikukrainian':'uk','wikpersian':'fa','wikpashto':'ps','wiksindhi':'sd','wikpunjabi':'pa','wikbengali':'bn','wiktamil':'ta','wiktelugu':'te','wikmalay':'ms','wikindonesian':'id','wikswahili':'sw','wikhebrew':'he','wikgreek':'el','wikthai':'th'};
 global.__X4_TLANG = {'trenglish':'en','trurdu':'ur','trarabic':'ar','trhindi':'hi','trspanish':'es','trfrench':'fr','trgerman':'de','trchinese':'zh','trjapanese':'ja','trkorean':'ko','trrussian':'ru','trturkish':'tr','trportuguese':'pt','tritalian':'it','trdutch':'nl','trpolish':'pl','trukrainian':'uk','trpersian':'fa','trpashto':'ps','trsindhi':'sd','trpunjabi':'pa','trbengali':'bn','trtamil':'ta','trtelugu':'te','trmalay':'ms','trindonesian':'id','trswahili':'sw','trhebrew':'he','trgreek':'el','trthai':'th'};
-global.__X4_FACTS = {'factmath':["114 ni 6 hai aur 6 ni 114 — dono ka guna 684 hy.", "Zero ko koi bhi number divide kar sakta hy, magar zero kisi ko divide nahi kar sakta (0/5=0 magar 5/0 impossible).", "Har prime number 6n±1 ke roop me hota hy (2,3 ke ilawa).", "Palprime 12321 ulta seedha ek jaisa hota hy."],'factspace':["Suraj me 1.3 million Earth aa sakte hyn.", "Venus ka din uske saal se lamba hy.", "Neutron star ka ek chammach 6 billion ton ka hota hy.", "Chand par tumhara wazan 6 guna kam ho jata hy."],'factanimal':["Octopus ke 3 dil hote hyn.", "Falcon 390 km/h se dive kar sakta hy.", "Elephant pani ko suck kar ke peene ke liye use kar sakta hy — 10 liter ek baar me.", "Sharks jungle se pehle exist karte hyn — trees se 50 million saal pehle."],'factbody':["Insani dimagh me ~86 billion neurons hyn.", "Tumhari aankh 10 million rang differentiate kar sakti hy.", "Insani nazon ka total length 100,000 km — Earth ke 2 chakkar.", "Dil din me 100,000 dafa dhatta hy."],'factfood':["Shahad (honey) kabhi kharab nahi hota — 3000 saal purana shahad khaya ja chuka hy.", "Kela botanically berry hy magar strawberry nahi.", "Coffee world ki sab se zyada trade hone wali commodity me se hy.", "Pakistan me per capita chai — duniya ke top consumers me."],'facttech':["Pehla computer bug asli insect (moth) tha — 1947.", "WiFi 4.6 billion saal purani stars ki radiation use karta hy calibrate ke liye (cosmic microwave background).", "Duniya me smartphones ki tadaad logon se zyada hy.", "Google ka pehla naam \"BackRub\" tha."],'facthistory':["Oxford University England me purani hy — Aztec Empire se bhi.", "Cleopatra Pyramid se zyada qareeb Moon landing se hy (time-wise).", "Woolly mammoth ke saath pyramids khari thin — species abhi bhi zinda thi.", "Hazrat Noah (AS) ke zamane ka samundar jahaaz Turkey ki pahadon me nishandaat hyn — Ararat."],'factrandom':["Duniya ka sab se chhota shehar 1 km² se bhi chhota hy (Vatican).", "Octopus ka khoon neela hota hy.", "Tum har kabhi apni aankhon ke andhe point ke through nahi dekh sakte — dimagh fill kar deta hy.", "Aik din me Earth 1.5 million km space me safar karti hy."]};
+global.__X4_FACTS = {'factzmath':["114 ni 6 hai aur 6 ni 114 — dono ka guna 684 hy.", "Zero ko koi bhi number divide kar sakta hy, magar zero kisi ko divide nahi kar sakta (0/5=0 magar 5/0 impossible).", "Har prime number 6n±1 ke roop me hota hy (2,3 ke ilawa).", "Palprime 12321 ulta seedha ek jaisa hota hy."],'factzspace':["Suraj me 1.3 million Earth aa sakte hyn.", "Venus ka din uske saal se lamba hy.", "Neutron star ka ek chammach 6 billion ton ka hota hy.", "Chand par tumhara wazan 6 guna kam ho jata hy."],'factzanimal':["Octopus ke 3 dil hote hyn.", "Falcon 390 km/h se dive kar sakta hy.", "Elephant pani ko suck kar ke peene ke liye use kar sakta hy — 10 liter ek baar me.", "Sharks jungle se pehle exist karte hyn — trees se 50 million saal pehle."],'factzbody':["Insani dimagh me ~86 billion neurons hyn.", "Tumhari aankh 10 million rang differentiate kar sakti hy.", "Insani nazon ka total length 100,000 km — Earth ke 2 chakkar.", "Dil din me 100,000 dafa dhatta hy."],'factzfood':["Shahad (honey) kabhi kharab nahi hota — 3000 saal purana shahad khaya ja chuka hy.", "Kela botanically berry hy magar strawberry nahi.", "Coffee world ki sab se zyada trade hone wali commodity me se hy.", "Pakistan me per capita chai — duniya ke top consumers me."],'factztech':["Pehla computer bug asli insect (moth) tha — 1947.", "WiFi 4.6 billion saal purani stars ki radiation use karta hy calibrate ke liye (cosmic microwave background).", "Duniya me smartphones ki tadaad logon se zyada hy.", "Google ka pehla naam \"BackRub\" tha."],'factzhistory':["Oxford University England me purani hy — Aztec Empire se bhi.", "Cleopatra Pyramid se zyada qareeb Moon landing se hy (time-wise).", "Woolly mammoth ke saath pyramids khari thin — species abhi bhi zinda thi.", "Hazrat Noah (AS) ke zamane ka samundar jahaaz Turkey ki pahadon me nishandaat hyn — Ararat."],'factzrandom':["Duniya ka sab se chhota shehar 1 km² se bhi chhota hy (Vatican).", "Octopus ka khoon neela hota hy.", "Tum har kabhi apni aankhon ke andhe point ke through nahi dekh sakte — dimagh fill kar deta hy.", "Aik din me Earth 1.5 million km space me safar karti hy."]};
 global.__X4_JOKES = {'jokedev':["Programmer ki wife: \"Doodh le aao, agar anday hyn to 6 lena.\" Programmer 6 doodh le aaya.", "99 bugs code me... ek fix kiya... 127 bugs code me.", "Duniya me 10 tarah ke log hyn — jo binary jante hyn aur jo nahi.", "Meri code chalti hy to usay mat chhero — ye golden rule hy."],'jokegeneral':["Ustad: Beta zindagi me kuch banna chahiye. Student: Ji ustad, main banna chahta hoon zindagi me aaram.", "Doctor: Aap ko kya takleef hy? Patient: Paise khatam ho gaye.", "Pakistani train ki speed — darwaza band karne se pehle station nikal jata hy.", "Aap ka wifi password kya hy? — \"sab kaam chalau\" chala raha hoon."],'jokepun':["Machhar ne shair kaha: Kaatna mujh ko... pehle recharge karao.", "Chai pe chai pe chai — cup ne kaha boss ab to badla do.", "Battery ne fan se kaha: tum ghoomo main so jaon? Fan: haan, tu Off ho ja."],'jokework':["Boss: Deadline kal hy. Main: Kaunsi? Boss: Wo wali jo guzar chuki hy.", "Meeting ke baad meeting — isi ko kaam kehte hyn.", "Email me \"Regards\" likhna — jab andar sab kuch ulta ho."]};
 global.__X4_QUOTES = {'quotesuccess':[["Kaamyabi wo nahi jo mil jaye, wo hy jo banai jaye.", "Kalam"], ["Har raat ke baad subah hy — bas saans lena band na karo.", "Anonymous"], ["Mehnat ka koi short-cut nahi hota.", "Anonymous"]],'quoteislamic':[["Allah ke sath sab kuch mumkin hy.", "Quran-based"], ["Sabr aur tawakkul — momin ka hathiyar.", "Hadith-inspired"], ["Jo Allah ke liye chhorte ho, Allah us se behtar deta hy.", "Anonymous"]],'quotemotivation':[["Aaj ki mehnat kal ki taaqat hy.", "Anonymous"], ["Mushkil waqt hi asli coach hota hy.", "Anonymous"], ["Shuru karo — rasta chalte chalte ban jata hy.", "Anonymous"]],'quotelove':[["Dil ka raasta sab se chhota magar sab se mushkil hota hy.", "Anonymous"], ["Mohabbat wo nahi jo mil jaye, wo hy jo nibhai jaye.", "Anonymous"]],'quotefunny':[["Kaam to kal bhi tha, aaj hi rehne deta hoon.", "Har Bande"], ["Main gareeb nahi hoon, meri income bas abhi load nahi hui.", "Anonymous"], ["Neeend qoumi karz hy — har subah wapis lena parta hy.", "Anonymous"]],'quotewisdom':[["Jo guzar gayi, us par waqt zaya na karo.", "Anonymous"], ["Zuban sambhalo — har lafz hisaab me aata hy.", "Anonymous"], ["Ilm wo khazana hy jo chori nahi ho sakta.", "Anonymous"]],'quotegaming':[["Ek aur round — phir so jaaon ga (khud se jhoot).", "Gamers"], ["Lag ke wajah tum nahi, server hy.", "Gamers"]],'quotelife':[["Zindagi chalti hy — chalte raho.", "Anonymous"], ["Waqt sab ka badla leta hy, bas thora sabr.", "Anonymous"], ["Aaj jo karoge, kal wohi wapas aayega.", "Anonymous"]]};
 
@@ -2540,14 +2549,14 @@ const DESC = {
 'eur2zmw':'Euro → Zambian Kwacha — .eur2zmw [amount] (live rate)',
 'f2c':'Fahrenheit → Celsius',
 'f2k':'Fahrenheit → Kelvin',
-'factanimal':'Animal fact — har dafa nayi maloomat',
-'factbody':'Body fact — har dafa nayi maloomat',
-'factfood':'Food fact — har dafa nayi maloomat',
-'facthistory':'History fact — har dafa nayi maloomat',
-'factmath':'Math fact — har dafa nayi maloomat',
-'factrandom':'Random fact — har dafa nayi maloomat',
-'factspace':'Space fact — har dafa nayi maloomat',
-'facttech':'Tech fact — har dafa nayi maloomat',
+'factzanimal':'Zanimal fact — har dafa nayi maloomat',
+'factzbody':'Zbody fact — har dafa nayi maloomat',
+'factzfood':'Zfood fact — har dafa nayi maloomat',
+'factzhistory':'Zhistory fact — har dafa nayi maloomat',
+'factzmath':'Zmath fact — har dafa nayi maloomat',
+'factzrandom':'Zrandom fact — har dafa nayi maloomat',
+'factzspace':'Zspace fact — har dafa nayi maloomat',
+'factztech':'Ztech fact — har dafa nayi maloomat',
 'fjd2aed':'Fijian Dollar → UAE Dirham — .fjd2aed [amount] (live rate)',
 'fjd2afn':'Fijian Dollar → Afghan Afghani — .fjd2afn [amount] (live rate)',
 'fjd2amd':'Fijian Dollar → Armenian Dram — .fjd2amd [amount] (live rate)',
@@ -12542,14 +12551,14 @@ const CATOF = {
 'eur2zmw':'CURRENCY',
 'f2c':'TEMPERATURE',
 'f2k':'TEMPERATURE',
-'factanimal':'FACTS',
-'factbody':'FACTS',
-'factfood':'FACTS',
-'facthistory':'FACTS',
-'factmath':'FACTS',
-'factrandom':'FACTS',
-'factspace':'FACTS',
-'facttech':'FACTS',
+'factzanimal':'FACTS',
+'factzbody':'FACTS',
+'factzfood':'FACTS',
+'factzhistory':'FACTS',
+'factzmath':'FACTS',
+'factzrandom':'FACTS',
+'factzspace':'FACTS',
+'factztech':'FACTS',
 'fjd2aed':'CURRENCY',
 'fjd2afn':'CURRENCY',
 'fjd2amd':'CURRENCY',
