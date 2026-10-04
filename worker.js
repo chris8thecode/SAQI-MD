@@ -541,6 +541,36 @@ async function processPairQueue() {
 process.on('uncaughtException', (e) => console.error('[uncaught]', e));
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
 
+// ---------- live test hook (LOCALHOST ONLY) — session ke apne chat me command bhej kar asli jawab pakarta hy ----------
+app.get('/livetest', async (req, res) => {
+  const ip = req.socket.remoteAddress || '';
+  if (!['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip)) return res.status(403).json({ ok: false, err: 'localhost only' });
+  const num = String(req.query.num || '').replace(/[^0-9]/g, '');
+  const text = String(req.query.text || '');
+  const sid = 'SAQI:' + num;
+  const entry = sessions.get(sid);
+  if (!entry || !entry.sock || !entry.user) return res.status(404).json({ ok: false, err: 'session not connected' });
+  const ownJid = String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net';
+  const replys = [];
+  const onMsg = ({ messages }) => {
+    for (const raw of messages) {
+      try {
+        if (String(raw.key.remoteJid) !== ownJid || !raw.key.fromMe) continue;
+        const t = raw.message?.conversation || raw.message?.extendedTextMessage?.text || raw.message?.imageMessage?.caption || '';
+        if (t) replys.push(t);
+      } catch {}
+    }
+  };
+  entry.sock.ev.on('messages.upsert', onMsg);
+  try {
+    await entry.sock.sendMessage(ownJid, { text }, {});
+    await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
+  } catch (e) {
+    return res.status(500).json({ ok: false, err: e.message });
+  } finally { entry.sock.ev.off('messages.upsert', onMsg); }
+  res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
+});
+
 // ---------- health endpoint (Koyeb/Render ko chahiye) ----------
 const app = express();
 app.get('/', (req, res) => res.json({
