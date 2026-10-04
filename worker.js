@@ -554,7 +554,9 @@ app.get('/livetest', async (req, res) => {
   const entry = sessions.get(sid);
   if (!entry || !entry.sock || !entry.user) return res.status(404).json({ ok: false, err: 'session not connected' });
   const toNum = String(req.query.to || '').replace(/[^0-9]/g, '');
-  const targetJid = toNum ? toNum + '@s.whatsapp.net' : (String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net');
+  const tEntryPre = toNum ? sessions.get('SAQI:' + toNum) : null;
+  const toLid = tEntryPre && tEntryPre.sock && tEntryPre.sock.user && tEntryPre.sock.user.lid ? String(tEntryPre.sock.user.lid).split(':')[0] + '@lid' : null;
+  const targetJid = toLid || (toNum ? toNum + '@s.whatsapp.net' : (String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net'));
   const replys = [];
   const caps = [];
   const mkCap = (tag) => ({ messages }) => {
