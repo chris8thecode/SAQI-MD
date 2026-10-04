@@ -1,14 +1,14 @@
-/* SAQI-MD — Pairing Server (Vercel-ready + standalone)
+/* SAQI-MD   Pairing Server (Vercel-ready + standalone)
  *
  * GET  /            -> web UI (public/index.html)
  * POST /api/pair    -> {number} -> {ok, id, code}
  * GET  /pair?phone= -> JSON API (same kaam, URL-only access)
  * GET  /api/status/:id -> {ok, status, code, linked}
  *
- * v4: Vercel-safe lazy init — har require getApp() ke andar hota hy, aur koi bhi
+ * v4: Vercel-safe lazy init   har require getApp() ke andar hota hy, aur koi bhi
  * boot error 500 me plainly report hota hy (FUNCTION_INVOCATION_FAILED ka pata nahi,
  * asli error dikhta hy). Standalone (node server.js) par wahi purana server chalta hy.
- * Worker (index.js) bhi is module ko require kar sakta hy (app use milta hy).
+ * Worker (worker.js) bhi is module ko require kar sakta hy (app use milta hy).
  */
 
 let _app = null;
@@ -21,9 +21,13 @@ async function getApp() {
   const crypto = require('crypto');
   const pino = require('pino');
   const config = require('./config');
-  const { useMongoAuthState } = require('./lib/mongoSession');
-  // Baileys ESM hy — pehle se bundle kiya hua CJS use karo (Vercel-proof)
-  const { makeWASocket, fetchLatestBaileysVersion, DisconnectReason } = require('./lib/baileys-bundle.cjs');
+  const { useMongoAuthState } = require('./src/lib/mongoSession');
+  // Baileys ESM hy   pehle se bundle kiya hua CJS use karo (Vercel-proof)
+  const {
+    makeWASocket,
+    fetchLatestBaileysVersion,
+    DisconnectReason,
+  } = require('./src/lib/baileys-bundle.cjs');
 
   const app = express();
   app.use(express.json());
@@ -33,27 +37,34 @@ async function getApp() {
   const TTL = 5 * 60 * 1000;
   let active = null; // singleton lock
 
-  const fmt = (code) => String(code).match(/.{1,4}/g).join('-');
+  const fmt = (code) =>
+    String(code)
+      .match(/.{1,4}/g)
+      .join('-');
 
   function closeActive() {
     if (!active) return;
-    try { active.sock.end(); } catch {}
+    try {
+      active.sock.end();
+    } catch {}
     pairings.delete(active.id);
     active = null;
   }
 
-  // Vercel serverless: response ke baad process mar jata hy — pairing handshake
+  // Vercel serverless: response ke baad process mar jata hy   pairing handshake
   // complete karne ke liye event-loop ko zinda rakho.
   function holdServerlessAlive(ms) {
     const end = Date.now() + ms;
-    const t = setInterval(() => { if (Date.now() > end) clearInterval(t); }, 5000);
+    const t = setInterval(() => {
+      if (Date.now() > end) clearInterval(t);
+    }, 5000);
     if (t.unref) t.unref(); // standalone server par process band nahi karna
   }
 
   async function createPairing(number) {
     closeActive();
     const id = crypto.randomBytes(8).toString('hex');
-    // multi-user: har number ka apna session — isi se worker use uthata hy
+    // multi-user: har number ka apna session   isi se worker use uthata hy
     const sessionId = `${config.SESSION_PREFIX}:${number}`;
 
     const { state, saveCreds } = await useMongoAuthState(config.MONGODB_URI, sessionId);
@@ -69,7 +80,15 @@ async function getApp() {
       syncFullHistory: false,
     });
 
-    const entry = { id, sock, code: null, number, status: 'connecting', createdAt: Date.now(), __attempts: 0 };
+    const entry = {
+      id,
+      sock,
+      code: null,
+      number,
+      status: 'connecting',
+      createdAt: Date.now(),
+      __attempts: 0,
+    };
     pairings.set(id, entry);
     active = entry;
 
@@ -79,7 +98,9 @@ async function getApp() {
       const { connection, lastDisconnect } = u;
       if (connection === 'open') {
         entry.status = 'linked';
-        console.log(`[PAIR] ${number} LINKED — session saved (${config.MONGODB_URI ? 'MongoDB' : 'file'})`);
+        console.log(
+          `[PAIR] ${number} LINKED   session saved (${config.MONGODB_URI ? 'MongoDB' : 'file'})`,
+        );
         active = null;
         holdServerlessAlive(10 * 1000); // ek dafa save ho gaya, ab free
       }
@@ -99,7 +120,9 @@ async function getApp() {
     setTimeout(() => {
       const cur = pairings.get(id);
       if (cur && cur.status !== 'linked') {
-        try { cur.sock.end(); } catch {}
+        try {
+          cur.sock.end();
+        } catch {}
         pairings.delete(id);
         if (active === cur) active = null;
       }
@@ -112,10 +135,13 @@ async function getApp() {
 
   async function requestCode(entry) {
     const attempt = ++entry.__attempts;
-    if (attempt > 3) { entry.status = 'error'; return; }
+    if (attempt > 3) {
+      entry.status = 'error';
+      return;
+    }
 
     // socket ka WhatsApp tak pohanchne ka intezar (race fix)
-    await new Promise(r => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 3000));
     if (entry.status === 'linked' || !pairings.has(entry.id)) return;
 
     try {
@@ -131,7 +157,7 @@ async function getApp() {
   }
 
   // ---------- Mongo pair-queue (Vercel 60s cap ka hal) ----------
-  // Vercel serverless par baileys socket 60s me mar jata hy — is liye pairing ka
+  // Vercel serverless par baileys socket 60s me mar jata hy   is liye pairing ka
   // asli kaam 24/7 worker karta hy. Portal sirf request queue karta hy aur code
   // Mongo se uthata hy. File-mode (bina Mongo) par purana direct flow chalta hy.
   const mongoose = require('mongoose');
@@ -141,7 +167,10 @@ async function getApp() {
       await mongoose.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
     }
     if (!_prModel) {
-      const s = new mongoose.Schema({ _id: String, number: String, status: String, code: String, createdAt: Date }, { collection: 'pair_requests' });
+      const s = new mongoose.Schema(
+        { _id: String, number: String, status: String, code: String, createdAt: Date },
+        { collection: 'pair_requests' },
+      );
       _prModel = mongoose.models.PairRequest || mongoose.model('PairRequest', s);
     }
     return _prModel;
@@ -151,21 +180,30 @@ async function getApp() {
   app.post('/api/pair', async (req, res) => {
     const number = String(req.body?.number || '').replace(/[^0-9]/g, '');
     if (!number || number.length < 10 || number.length > 15) {
-      return res.json({ ok: false, error: 'Number ghalat hy — country code ke sath likho (e.g. 92300XXXXXXX)' });
+      return res.json({
+        ok: false,
+        error: 'Number ghalat hy   country code ke sath likho (e.g. 92300XXXXXXX)',
+      });
     }
     try {
       if (config.MONGODB_URI) {
         const PR = await queueDB();
-        // dobara click par chalta hua request reset NAHI — chal rahi request ki
+        // dobara click par chalta hua request reset NAHI   chal rahi request ki
         // current halat wapis karo (warna bana hua code gayab ho jata tha)
-        const ex = await PR.findById(number).lean().catch(() => null);
-        if (ex && (Date.now() - new Date(ex.createdAt).getTime()) < 10 * 60 * 1000 && ex.status !== 'error') {
+        const ex = await PR.findById(number)
+          .lean()
+          .catch(() => null);
+        if (
+          ex &&
+          Date.now() - new Date(ex.createdAt).getTime() < 10 * 60 * 1000 &&
+          ex.status !== 'error'
+        ) {
           return res.json({ ok: true, id: number, code: ex.code || null, status: ex.status });
         }
         await PR.findOneAndUpdate(
           { _id: number },
           { number, status: 'pending', code: null, createdAt: new Date() },
-          { upsert: true }
+          { upsert: true },
         );
         return res.json({ ok: true, id: number, code: null, status: 'pending' });
       }
@@ -174,7 +212,7 @@ async function getApp() {
       res.json({ ok: true, id: entry.id, code: null, status: entry.status });
     } catch (e) {
       console.error('[PAIR] create fail:', e.message);
-      res.json({ ok: false, error: 'Server busy hy — thori dair baad try karo.' });
+      res.json({ ok: false, error: 'Server busy hy   thori dair baad try karo.' });
     }
   });
 
@@ -185,9 +223,14 @@ async function getApp() {
     }
     try {
       const entry = await createPairing(number);
-      res.json({ ok: true, id: entry.id, code: entry.code ? fmt(entry.code) : null, status: entry.status });
+      res.json({
+        ok: true,
+        id: entry.id,
+        code: entry.code ? fmt(entry.code) : null,
+        status: entry.status,
+      });
     } catch (e) {
-      res.json({ ok: false, error: 'Server busy hy — thori dair baad try karo.' });
+      res.json({ ok: false, error: 'Server busy hy   thori dair baad try karo.' });
     }
   });
 
@@ -195,9 +238,16 @@ async function getApp() {
     try {
       if (config.MONGODB_URI) {
         const PR = await queueDB();
-        const doc = await PR.findById(req.params.id).lean().catch(() => null);
+        const doc = await PR.findById(req.params.id)
+          .lean()
+          .catch(() => null);
         if (!doc) return res.json({ ok: false, status: 'expired' });
-        return res.json({ ok: true, status: doc.status, code: doc.code || null, linked: doc.status === 'linked' });
+        return res.json({
+          ok: true,
+          status: doc.status,
+          code: doc.code || null,
+          linked: doc.status === 'linked',
+        });
       }
     } catch (e) {
       return res.json({ ok: false, status: 'expired' });
@@ -207,18 +257,26 @@ async function getApp() {
     if (!e.code && e.status !== 'linked' && Date.now() - e.createdAt < 90 * 1000) {
       return res.json({ ok: true, status: 'starting', code: null });
     }
-    res.json({ ok: true, status: e.status, code: e.code ? fmt(e.code) : null, linked: e.status === 'linked' });
+    res.json({
+      ok: true,
+      status: e.status,
+      code: e.code ? fmt(e.code) : null,
+      linked: e.status === 'linked',
+    });
   });
 
-  app.get('/health', (req, res) => res.json({ ok: true, service: 'saqi-md-pair', build: 'v17-fresh', active: !!active }));
-  app.use(express.static(path.join(__dirname, 'public')));
-  app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+  app.get('/health', (req, res) =>
+    res.json({ ok: true, service: 'saqi-md-pair', build: 'v17-fresh', active: !!active }),
+  );
+  const publicDir = path.join(__dirname, 'src', 'public');
+  app.use(express.static(publicDir));
+  app.get('/', (req, res) => res.sendFile(path.join(publicDir, 'index.html')));
 
   _app = app;
   return app;
 }
 
-// Vercel serverless entry — koi bhi boot error asli shape me report hota hy
+// Vercel serverless entry   koi bhi boot error asli shape me report hota hy
 module.exports = async (req, res) => {
   try {
     const app = await getApp();
@@ -227,14 +285,23 @@ module.exports = async (req, res) => {
     res.status(500).json({
       ok: false,
       error: e.message,
-      stack: String(e.stack || '').split('\n').slice(0, 5).join('\n'),
+      stack: String(e.stack || '')
+        .split('\n')
+        .slice(0, 5)
+        .join('\n'),
     });
   }
 };
 
 const PORT = process.env.PORT || 3000;
-if (require.main === module && process.env.VERCEL !== '1') { // standalone + worker mount ke ilawa
-  getApp().then((app) => {
-    app.listen(PORT, () => console.log(`[SAQI-MD] Pairing portal: http://localhost:${PORT}`));
-  }).catch((e) => { console.error('[SAQI-MD] portal fail:', e); process.exit(1); });
+if (require.main === module && process.env.VERCEL !== '1') {
+  // standalone + worker mount ke ilawa
+  getApp()
+    .then((app) => {
+      app.listen(PORT, () => console.log(`[SAQI-MD] Pairing portal: http://localhost:${PORT}`));
+    })
+    .catch((e) => {
+      console.error('[SAQI-MD] portal fail:', e);
+      process.exit(1);
+    });
 }

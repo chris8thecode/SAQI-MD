@@ -3,7 +3,7 @@ from nacl import encoding
 from nacl.public import PublicKey, SealedBox
 
 token, mongo, gem, owner = sys.argv[1:5]
-REPO = 'badb54880-spec/SAQI-MD'
+REPO = 'saqibiqbaltesting-ai/SAQI-MD'
 
 def api(path, data=None, method='GET'):
     req = urllib.request.Request(f'https://api.github.com{path}',

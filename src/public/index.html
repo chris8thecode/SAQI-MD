@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAQI-MD | Generate Your Pairing Code</title>
+    <link rel="stylesheet" href="style.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="orbs"><span></span><span></span><span></span></div>
+
+    <main class="card">
+      <div class="logo"><i class="fa-solid fa-bolt"></i></div>
+      <h1>SAQI<span>-MD</span></h1>
+      <p class="sub">Generate Your Pairing Code</p>
+
+      <div class="inputwrap">
+        <i class="fa-solid fa-phone"></i>
+        <input id="num" type="tel" placeholder="92300XXXXXXX" maxlength="15" autocomplete="tel" />
+      </div>
+      <p class="hint">Include country code (e.g., 92 for Pakistan)</p>
+
+      <button class="btn" id="btn"><i class="fa-solid fa-key"></i> Generate Pair Code</button>
+      <p class="note">No QR scanning needed code expires in a few minutes.</p>
+
+      <div class="codebox" id="box">
+        <p class="small">Your pairing code:</p>
+        <div class="code" id="code">----</div>
+        <p class="small" id="waitmsg" style="display: none"></p>
+        <button class="copy" id="copy"><i class="fa-regular fa-copy"></i> Copy Code</button>
+        <p class="small linked" id="linked" style="display: none">
+          &#10003; <b>Linked!</b> Bot is now running type <b>.menu</b> in any chat.
+        </p>
+      </div>
+
+      <div class="err" id="err"></div>
+
+      <div class="steps">
+        <p><b>How to link:</b></p>
+        <p>1. Enter your WhatsApp number above</p>
+        <p>2. Open WhatsApp: Settings, Linked devices</p>
+        <p>3. Tap Link a device, then Link with phone number instead</p>
+        <p>4. Enter the 8-digit code here - done!</p>
+      </div>
+
+      <footer>SAQI-MD Powered by <b>Attitude King</b></footer>
+    </main>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let pollTimer = null;
+
+      // page reload ho jaye to bhi chalti hui request khud pakar lo (refresh-safe)
+      window.addEventListener('load', () => {
+        const saved = localStorage.getItem('saqiPair');
+        if (!saved) return;
+        try {
+          const o = JSON.parse(saved);
+          if (Date.now() - o.t > 10 * 60 * 1000) {
+            localStorage.removeItem('saqiPair');
+            return;
+          }
+          $('num').value = o.num || '';
+          showWait();
+          poll(o.id);
+        } catch (e) {}
+      });
+
+      async function pair() {
+        const num = $('num').value.replace(/[^0-9]/g, '');
+        if (num.length < 10)
+          return showErr('Number poora likho   country code ke sath (92300XXXXXXX)');
+        $('btn').disabled = true;
+        $('btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+        $('err').style.display = 'none';
+        $('box').classList.remove('show');
+        stopPoll();
+        localStorage.setItem('saqiPair', JSON.stringify({ id: num, num, t: Date.now() }));
+
+        try {
+          const r = await fetch('/api/pair', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ number: num }),
+          });
+          const d = await r.json();
+          if (!d.ok) return showErr(d.error || 'Something went wrong   try again.');
+
+          if (d.code) {
+            showCode(d.code);
+          } else {
+            $('btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Code ban raha hy...';
+            showWait();
+            poll(d.id);
+          }
+        } catch (e) {
+          showErr('Server se connection nahi bana   dobara try karo.');
+        }
+        $('btn').disabled = false;
+        $('btn').innerHTML = '<i class="fa-solid fa-key"></i> Generate Pair Code';
+      }
+
+      function showWait() {
+        $('box').classList.add('show');
+        $('code').innerHTML =
+          '<span style="font-size:16px;letter-spacing:1px">⏳ Code ban raha hy...</span>';
+        $('waitmsg').style.display = 'block';
+        const t0 = Date.now();
+        clearInterval(window._wt);
+        window._wt = setInterval(() => {
+          const s = Math.round((Date.now() - t0) / 1000);
+          $('waitmsg').textContent =
+            'Aam tor par 4-5 second lagte hyn... (' +
+            s +
+            's)   page khula chhoro, code khud aa jayega';
+        }, 1000);
+      }
+      function stopWait() {
+        clearInterval(window._wt);
+        $('waitmsg').style.display = 'none';
+      }
+
+      function poll(id) {
+        pollTimer = setInterval(async () => {
+          try {
+            const r = await fetch('/api/status/' + id);
+            const d = await r.json();
+            if (d.code) {
+              showCode(d.code);
+              stopPoll();
+            }
+            if (d.linked) {
+              localStorage.removeItem('saqiPair');
+              stopWait();
+              $('linked').style.display = 'block';
+              stopPoll();
+            }
+          } catch (e) {}
+        }, 1500);
+        setTimeout(stopPoll, 300000);
+      }
+      function stopPoll() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = null;
+      }
+
+      function showCode(c) {
+        localStorage.removeItem('saqiPair');
+        stopWait();
+        $('code').textContent = c;
+        $('box').classList.add('show');
+      }
+      function showErr(t) {
+        $('err').textContent = 'X ' + t;
+        $('err').style.display = 'block';
+      }
+
+      $('btn').addEventListener('click', pair);
+      $('num').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') pair();
+      });
+      $('copy').addEventListener('click', () => {
+        navigator.clipboard.writeText($('code').textContent.replace(/-/g, ''));
+        $('copy').innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        setTimeout(
+          () => ($('copy').innerHTML = '<i class="fa-regular fa-copy"></i> Copy Code'),
+          2000,
+        );
+      });
+    </script>
+  </body>
+</html>
