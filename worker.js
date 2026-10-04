@@ -575,16 +575,21 @@ app.get('/livetest', async (req, res) => {
   const tEntry = toNum ? sessions.get('SAQI:' + toNum) : null;
   const cap2 = tEntry ? mkCap('target') : null;
   if (cap2) tEntry.sock.ev.on('messages.upsert', cap2);
+  var sendErr = null, sendKey = null;
+  const updCap = ({ messages }) => { try { for (const u of messages) if (u.key && (u.status || u.update)) sendKey = 'status:' + u.status; } catch {} };
+  entry.sock.ev.on('messages.update', updCap);
   try {
-    await Promise.race([
+    const sent = await Promise.race([
       entry.sock.sendMessage(targetJid, { text }, {}),
-      new Promise((_, rej) => setTimeout(() => rej(new Error('send timeout')), 8000)).catch(() => {}),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('send timeout')), 8000)),
     ]);
-  } catch {}
+    sendKey = sent && sent.key ? sent.key.id : 'nosend';
+  } catch (e) { sendErr = e.message; }
   await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
+  entry.sock.ev.off('messages.update', updCap);
   entry.sock.ev.off('messages.upsert', cap1);
   if (cap2) tEntry.sock.ev.off('messages.upsert', cap2);
-  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4), caps: caps.slice(0, 10), fromUser: entry.sock.user, toUser: tEntry ? (tEntry.sock.user || null) : null });
+  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4), caps: caps.slice(0, 10), sendErr, sendKey, fromUser: entry.sock.user, toUser: tEntry ? (tEntry.sock.user || null) : null });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
