@@ -36,6 +36,7 @@ for (const f of require('fs').readdirSync('./commands').filter(x => x.endsWith('
 }
 // ---------- v5.0 hooks: x* files ke liye global access ----------
 global.__SAQI_CMD_GET = (name) => commands.get(String(name || '').toLowerCase());
+global.__SAQI_CMDS_ALL = commands;
 global.__SAQI_STATS = { startedAt: startAt, commandCount: commands.size, sessions: 0 };
 
 // ---------- multi-session registry ----------
