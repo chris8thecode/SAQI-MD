@@ -13,6 +13,7 @@ const {
   default: makeWASocket,
   fetchLatestBaileysVersion,
   DisconnectReason,
+  Browsers,
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const express = require('express');
@@ -41,6 +42,7 @@ let baileysVersion = null;
 // antidelete: har session ke akhri messages ki sada copy (messageId -> info)
 const msgCache = new Map();
 const settingsMod = require('./commands/settings.js');
+const { isTransientError, logError, reportToSelf } = require('./lib/errorHeal');
 
 // ---------- SETTINGS PERSISTENCE (Mongo 'bot_settings' — restart se zinda) ----------
 const mgSettings = require('mongoose');
@@ -110,9 +112,22 @@ async function startSession(sessionId) {
       auth: state,
       logger,
       printQRInTerminal: false,
-      browser: ['Ubuntu', 'Chrome', '22.04.4'],
+      // ANTIBAN: desktop Chrome jaisa browser (Ubuntu/Chrome header patterns jo WhatsApp ke liye normal hyn)
+      browser: Browsers.ubuntu('Chrome'),
       markOnlineOnConnect: getToggle('online') !== false,
       syncFullHistory: false,
+      // ANTIBAN: presence/typing storms se bacho (WhatsApp spam-detection inhi ko pakarta hy)
+      emitOwnEvents: false,
+      fireInitQueries: true,
+      connectTimeoutMs: 60000,
+      defaultQueryTimeoutMs: 60000,
+      keepAliveIntervalMs: 25000,
+      retryRequestDelayMs: 250,
+      // ANTIBAN: history sync ka poora payload na mango (naye device par bulk fetch = red flag)
+      shouldSyncHistoryMessage: () => false,
+      getMessage: async () => undefined,
+      // ANTIBAN: phone ko "typing" dikhane wali auto presence sirf tab jab toggle on ho
+      markOnlineOnConnect: getToggle('online') !== false,
     });
     entry.sock.ev.on('creds.update', saveCreds);
 
@@ -350,7 +365,26 @@ async function handleMessage(sock, raw) {
     }
   } catch (e) {
     console.error(`[CMD-ERR] ${m.command}:`, e);
-    await m.reply(`❌ *Error* aya tha command me — owner ko bata diya jayega.\n\`\`\`${String(e.message).slice(0, 120)}\`\`\``).catch(() => {});
+    const emsg = String(e.message || e).slice(0, 200);
+
+    // 1) TRANSIENT error (network/timeout/429/503) → khud ek dafa retry, user ko pata bhi na chale
+    if (!m.__retried && isTransientError(emsg)) {
+      await new Promise((r) => setTimeout(r, 1500));
+      try {
+        await cmd.handler({ ...m, __retried: true }, sock);
+        return; // retry chal gaya — error report ki zaroorat nahi
+      } catch (e2) {
+        console.error(`[CMD-RETRY-FAIL] ${m.command}:`, String(e2.message).slice(0, 120));
+      }
+    }
+
+    // 2) error Mongo me likho + user ke apne number (yourself) par report bhejo
+    logError({ command: m.command, chat: m.chat, isGroup: !!m.isGroup, sender: m.sender, error: emsg });
+    await reportToSelf(sock,
+      `⚠️ *BOT ERROR*\n\n🔹 Command: ${config.PREFIX}${m.command}\n🔹 Chat: ${m.isGroup ? 'Group' : 'DM'}\n🔹 Error: \`${emsg.slice(0, 150)}\`\n🕒 ${new Date().toLocaleString('en-PK', { timeZone: config.TIMEZONE })}\n\n🤖 Bot khud retry kar chuka hy — phir bhi ye aya, to main ise theek kar dunga.`);
+
+    // 3) user ko saaf jawab
+    await m.reply(`❌ *Error* aya — bot ne khud report kar di hy, jaldi theek ho jayega.\n\`\`\`${emsg.slice(0, 120)}\`\`\``).catch(() => {});
   }
 }
 

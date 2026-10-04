@@ -58,9 +58,35 @@ async function handler(m, sock) {
     }
     case 'pair': {
       const num = m.arg.replace(/[^0-9]/g, '');
-      if (!num) return m.reply(`❌ Number do. Example: ${config.PREFIX}pair 923xxxxxxxxxx`);
-      const code = await sock.requestPairingCode(num);
-      return m.reply(`🔗 *Pairing Code for +${num}:*\n\n\`\`\`${code}\`\`\``);
+      if (!num || num.length < 10) return m.reply(`❌ Number do (country code ke sath). Example: ${config.PREFIX}pair 923xxxxxxxxxx`);
+      const myNum = String(sock.user?.id || '').split(':')[0].split('@')[0];
+      if (num === myNum) return m.reply(`❌ Ye to bot ka apna number hy (+${num}).\nKisi *doosre* number ka code lo, ya website se pair karo: ${config.PAIR_URL || 'https://saqi-md.vercel.app'}`);
+      // pairing queue me daalo — sandbox worker code bana kar portal par dikhayega
+      const mg = require('mongoose');
+      try {
+        if (mg.connection.readyState !== 1) await mg.connect(config.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+        await mg.connection.db.collection('pair_requests').findOneAndUpdate(
+          { _id: num },
+          { $set: { number: num, status: 'pending', code: null, createdAt: new Date() } },
+          { upsert: true }
+        );
+      } catch (e) {
+        return m.reply(`❌ Queue me nahi daal saka: ${String(e.message).slice(0, 100)}`);
+      }
+      return m.reply(`🔗 *+${num}* ke liye pairing request queue me chali gayi.\n\n✅ 5-10 second me code ready ho jayega.\n📱 WhatsApp → Linked Devices → Link with phone number\n\n🔎 Status dekho: https://saqi-md.vercel.app`);
+    }
+    case 'update': case 'gitpull': {
+      const { execFile } = require('child_process');
+      const out = await new Promise((res) => {
+        execFile('git', ['pull', '--ff-only'], { cwd: __dirname + '/..', timeout: 60000 },
+          (e, stdout, stderr) => res(e ? `❌ ${String(stderr || e.message).slice(0, 200)}` : `✅ ${String(stdout).slice(0, 300)}`));
+      });
+      return m.reply(`🔄 *UPDATE*\n\n${out}`);
+    }
+    case 'restart': case 'restrt': case 'reboot': {
+      await m.reply('🔄 *Restart* ho raha hy... 10-15 second me bot wapis online hoga.');
+      setTimeout(() => { process.exit(0); }, 1200); // guard khud naya worker uthata hy
+      return;
     }
     case 'follow': case 'follow2': {
       if (!m.arg) return m.reply('❌ Channel JID/link do.');
@@ -111,7 +137,9 @@ module.exports.commands = [
   { name: 'ik', desc: 'Bot info', category: 'OWNER', handler },
   { name: 'block', desc: 'Number block', category: 'OWNER', handler },
   { name: 'unblock', desc: 'Number unblock', category: 'OWNER', handler },
-  { name: 'pair', desc: 'Pairing code banao', category: 'OWNER', handler },
+  { name: 'pair', desc: 'Naya number pair karo', category: 'OWNER', handler },
+  { name: 'update', desc: 'Bot code update (git pull)', category: 'OWNER', handler },
+  { name: 'restart', desc: 'Bot restart', category: 'OWNER', handler },
   { name: 'follow', desc: 'Channel follow', category: 'OWNER', handler },
   { name: 'follow2', desc: 'Channel follow', category: 'OWNER', handler },
   { name: 'unfollow', desc: 'Channel unfollow', category: 'OWNER', handler },
