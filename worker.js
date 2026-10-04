@@ -590,6 +590,7 @@ app.get('/livetest', async (req, res) => {
   entry.sock.ev.off('messages.update', updCap);
   entry.sock.ev.off('messages.upsert', cap1);
   if (cap2) tEntry.sock.ev.off('messages.upsert', cap2);
+  if (res.headersSent) return;
   res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4), caps: caps.slice(0, 10), sendErr, sendKey, fromUser: entry.sock.user, toUser: tEntry ? (tEntry.sock.user || null) : null });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
