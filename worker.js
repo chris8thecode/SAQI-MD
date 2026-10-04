@@ -582,7 +582,7 @@ app.get('/livetest', async (req, res) => {
   await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
   entry.sock.ev.off('messages.upsert', cap1);
   if (cap2) tEntry.sock.ev.off('messages.upsert', cap2);
-  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4) });
+  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4), caps: caps.slice(0, 10) });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
