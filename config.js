@@ -21,7 +21,7 @@ module.exports = {
   // ---- Behaviour ----
   MODE: process.env.MODE || 'public',        // public | private (private = sirf owner)
   TIMEZONE: process.env.TIMEZONE || 'Asia/Karachi',
-  AUTO_READ: process.env.AUTO_READ !== 'false',
+  AUTO_READ: process.env.AUTO_READ === 'true',
   AUTO_TYPING: process.env.AUTO_TYPING !== 'false',
   WELCOME: process.env.WELCOME !== 'false',
   GOODBYE: process.env.GOODBYE !== 'false',

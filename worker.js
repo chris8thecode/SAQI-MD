@@ -275,11 +275,9 @@ async function handleMessage(sock, raw) {
   const m = smsg(sock, raw);
   if (!m.command) return;
   if (config.AUTO_READ || getToggle('autoread')) await sock.readMessages([raw.key]).catch(() => {});
-  // .online on → presence available + message read (double blue tick) — sirf "online" nahi
-  if (getToggle('online')) {
-    await sock.sendPresenceUpdate('available', m.chat).catch(() => {});
-    await sock.readMessages([raw.key]).catch(() => {});
-  }
+  // .online on → presence available (bot online nazar aaye). READ nahi karta —
+  // double tick chahiye to .autoread on karo (ye do alag cheezein hyn).
+  if (getToggle('online')) await sock.sendPresenceUpdate('available', m.chat).catch(() => {});
 
   // private mode: sirf owner + sudo
   const senderNum = (m.sender || '').split('@')[0];

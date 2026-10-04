@@ -28,7 +28,7 @@ const DEFAULT_WELCOME = '👋 Welcome *@user* — *{group}* me khush aamdeed! �
 const DEFAULT_GOODBYE = '👋 *@user* ne group chhora. Allah Hafiz!';
 
 function toggle(m, sock) {
-  const key = m.command.toLowerCase();
+  const key = TOGGLE_ALIASES[m.command.toLowerCase()] || m.command.toLowerCase();
   const val = !toggles.get(key);
   toggles.set(key, val);
   persist();
@@ -38,7 +38,7 @@ function toggle(m, sock) {
     antilink: '\n🚫 Ab group me link bhejne par message delete hoga.',
     online: val ? '\n🟢 Ab bot online rahega + tumhare messages par *double blue tick* aayega.' : '\n⚪ Ab bot offline presence dikhayega (tick single rahega).',
   };
-  return m.reply(`✅ ${m.command.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${hints[key] || ''}`);
+  return m.reply(`✅ ${key.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${hints[key] || ''}`);
 }
 
 async function handler(m, sock) {
@@ -121,13 +121,25 @@ async function handler(m, sock) {
       return m.reply(txt);
     }
     default: {
-      if (toggles.has(m.command.toLowerCase())) return toggle(m, sock);
+      const k = TOGGLE_ALIASES[m.command.toLowerCase()] || m.command.toLowerCase();
+      if (toggles.has(k)) return toggle({ ...m, command: k }, sock);
       return m.reply('❓ Unknown setting');
     }
   }
 }
 
-const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistatus','antidelete','recording','statusview','autoreact','antical','anticalmsg','adminaction','autotyping','online','mentionreply'];
+const TOGGLE_NAMES = ['statusemoji','statuslike','autoread','antilink','antistatus','antidelete','recording','autorecording','statusview','autoreact','autostatus','antical','anticalmsg','adminaction','autotyping','online','mentionreply'];
+
+// user jo naam likhta hy → asli toggle key (alias map)
+const TOGGLE_ALIASES = {
+  autorecording: 'recording',      // .autorecording on = .recording on
+  autostatus: 'statusview',        // .autostatus on = status dekhna shuru
+  autostatuslike: 'statuslike',
+  autostatusemoji: 'statusemoji',
+  autorec: 'recording',
+  antidel: 'antidelete',
+  autocall: 'antical',
+};
 
 module.exports.getToggle = (k) => toggles.get(k) || false;
 module.exports.getText = (k) => customTexts[k] || '';
