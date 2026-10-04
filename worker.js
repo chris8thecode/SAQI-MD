@@ -34,6 +34,9 @@ for (const f of require('fs').readdirSync('./commands').filter(x => x.endsWith('
     console.error(`[SAQI-MD] command file fail: ${f}:`, e.message);
   }
 }
+// ---------- v5.0 hooks: x* files ke liye global access ----------
+global.__SAQI_CMD_GET = (name) => commands.get(String(name || '').toLowerCase());
+global.__SAQI_STATS = { startedAt: startAt, commandCount: commands.size, sessions: 0 };
 
 // ---------- multi-session registry ----------
 // sessionId -> { sock, reconnects, user, starting, dead }
@@ -104,6 +107,7 @@ async function startSession(sessionId) {
   if (sessions.has(sessionId)) return;
   const entry = { sock: null, reconnects: 0, user: null, starting: true, dead: false };
   sessions.set(sessionId, entry);
+  try { global.__SAQI_STATS.sessions = sessions.size; } catch (e) {}
 
   try {
     const { state, saveCreds } = await useMongoAuthState(config.MONGODB_URI, sessionId);

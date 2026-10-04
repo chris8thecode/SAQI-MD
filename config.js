@@ -6,7 +6,7 @@ require('dotenv').config();
 module.exports = {
   // ---- Bot identity ----
   BOT_NAME: process.env.BOT_NAME || 'SAQI-MD',
-  BOT_VERSION: '1.0.0',
+  BOT_VERSION: '5.0.0',
   PREFIX: process.env.PREFIX || '.',
   OWNER_NAME: process.env.OWNER_NAME || 'Attitude King',
   OWNER_NUMBERS: (process.env.OWNER_NUMBERS || '').split(',').map(s => s.replace(/[^0-9]/g, '')).filter(Boolean), // e.g. 923106762478,923134182952
