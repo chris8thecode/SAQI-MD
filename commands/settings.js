@@ -36,7 +36,8 @@ function toggle(m, sock) {
   const hints = {
     antidelete: '\n🚫 Ab deleted messages wapis dikhenge.',
     antilink: '\n🚫 Ab group me link bhejne par message delete hoga.',
-    online: val ? '\n🟢 Ab bot online rahega + tumhare messages par *double blue tick* aayega.' : '\n⚪ Ab bot offline presence dikhayega (tick single rahega).',
+    online: val ? '\n🟢 Ab bot *online* rahega + messages par *double grey tick* aayega (blue tick nahi — read nahi karega).' : '\n⚪ Ab bot offline presence dikhayega (tick single rahega).',
+    autoread: val ? '\n📖 Ab messages *read* honge — *blue tick* aayega.' : '\n👁️ Ab messages read nahi honge — blue tick nahi aayega.',
   };
   return m.reply(`✅ ${key.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${hints[key] || ''}`);
 }
