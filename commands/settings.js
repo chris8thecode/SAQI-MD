@@ -33,7 +33,12 @@ function toggle(m, sock) {
   toggles.set(key, val);
   persist();
   if (key === 'online' && sock) sock.sendPresenceUpdate(val ? 'available' : 'unavailable', m.chat).catch(() => {});
-  return m.reply(`✅ ${m.command.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${key === 'antidelete' ? '\n🚫 Ab deleted messages wapis dikhenge.' : key === 'antilink' ? '\n🚫 Ab group me link bhejne par message delete hoga.' : ''}`);
+  const hints = {
+    antidelete: '\n🚫 Ab deleted messages wapis dikhenge.',
+    antilink: '\n🚫 Ab group me link bhejne par message delete hoga.',
+    online: val ? '\n🟢 Ab bot online rahega + tumhare messages par *double blue tick* aayega.' : '\n⚪ Ab bot offline presence dikhayega (tick single rahega).',
+  };
+  return m.reply(`✅ ${m.command.toUpperCase()}: *${val ? 'ON' : 'OFF'}*${hints[key] || ''}`);
 }
 
 async function handler(m, sock) {

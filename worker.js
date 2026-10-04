@@ -275,6 +275,11 @@ async function handleMessage(sock, raw) {
   const m = smsg(sock, raw);
   if (!m.command) return;
   if (config.AUTO_READ || getToggle('autoread')) await sock.readMessages([raw.key]).catch(() => {});
+  // .online on → presence available + message read (double blue tick) — sirf "online" nahi
+  if (getToggle('online')) {
+    await sock.sendPresenceUpdate('available', m.chat).catch(() => {});
+    await sock.readMessages([raw.key]).catch(() => {});
+  }
 
   // private mode: sirf owner + sudo
   const senderNum = (m.sender || '').split('@')[0];
