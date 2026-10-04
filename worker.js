@@ -553,12 +553,15 @@ app.get('/livetest', async (req, res) => {
   const sid = 'SAQI:' + num;
   const entry = sessions.get(sid);
   if (!entry || !entry.sock || !entry.user) return res.status(404).json({ ok: false, err: 'session not connected' });
-  const ownJid = String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net';
+  const toNum = String(req.query.to || '').replace(/[^0-9]/g, '');
+  const targetJid = toNum ? toNum + '@s.whatsapp.net' : (String(entry.sock.user.id).split(':')[0].split('@')[0] + '@s.whatsapp.net');
   const replys = [];
   const onMsg = ({ messages }) => {
     for (const raw of messages) {
       try {
-        if (String(raw.key.remoteJid) !== ownJid || !raw.key.fromMe) continue;
+        const rj = String(raw.key.remoteJid);
+        const match = toNum ? (rj === targetJid && !raw.key.fromMe) : (rj === targetJid && raw.key.fromMe);
+        if (!match) continue;
         const t = raw.message?.conversation || raw.message?.extendedTextMessage?.text || raw.message?.imageMessage?.caption || '';
         if (t) replys.push(t);
       } catch {}
@@ -567,13 +570,13 @@ app.get('/livetest', async (req, res) => {
   entry.sock.ev.on('messages.upsert', onMsg);
   try {
     await Promise.race([
-      entry.sock.sendMessage(ownJid, { text }, {}),
+      entry.sock.sendMessage(targetJid, { text }, {}),
       new Promise((_, rej) => setTimeout(() => rej(new Error('send timeout')), 8000)).catch(() => {}),
     ]);
   } catch {}
   await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
   entry.sock.ev.off('messages.upsert', onMsg);
-  res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
+  res.json({ ok: true, sent: text, to: toNum || 'self', replies: replys.slice(0, 4) });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
