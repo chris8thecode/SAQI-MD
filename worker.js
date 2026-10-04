@@ -392,6 +392,12 @@ async function processPairQueue() {
       await PR.updateOne({ _id: number }, { status: 'linked' });
       return;
     }
+    // dead/atki hui entry ho to hata do — warna pairing socket block reh jati hy
+    if (existing && !existing.user) {
+      try { existing.sock?.end(); } catch {}
+      sessions.delete(sessionId);
+      await new Promise((r) => setTimeout(r, 400));
+    }
 
     console.log(`[PAIR-Q] ${number} ke liye pairing socket start`);
     const entry = await startSession(sessionId);
