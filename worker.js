@@ -566,11 +566,14 @@ app.get('/livetest', async (req, res) => {
   };
   entry.sock.ev.on('messages.upsert', onMsg);
   try {
-    await entry.sock.sendMessage(ownJid, { text }, {});
-    await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
-  } catch (e) {
-    return res.status(500).json({ ok: false, err: e.message });
-  } finally { entry.sock.ev.off('messages.upsert', onMsg); }
+    await Promise.race([
+      entry.sock.sendMessage(ownJid, { text }, {}),
+      new Promise((_, rej) => setTimeout(() => rej(new Error('send timeout')), 8000)).catch(() => {}),
+    ]);
+  } catch {}
+  await new Promise(r => setTimeout(r, parseInt(req.query.wait) || 9000));
+  entry.sock.ev.off('messages.upsert', onMsg);
+  res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
