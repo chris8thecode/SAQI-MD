@@ -541,6 +541,9 @@ async function processPairQueue() {
 process.on('uncaughtException', (e) => console.error('[uncaught]', e));
 process.on('unhandledRejection', (e) => console.error('[unhandled]', e));
 
+// ---------- health endpoint (Koyeb/Render ko chahiye) ----------
+const app = express();
+
 // ---------- live test hook (LOCALHOST ONLY) — session ke apne chat me command bhej kar asli jawab pakarta hy ----------
 app.get('/livetest', async (req, res) => {
   const ip = req.socket.remoteAddress || '';
@@ -571,8 +574,6 @@ app.get('/livetest', async (req, res) => {
   res.json({ ok: true, sent: text, replies: replys.slice(0, 4) });
 });
 
-// ---------- health endpoint (Koyeb/Render ko chahiye) ----------
-const app = express();
 app.get('/', (req, res) => res.json({
   bot: config.BOT_NAME,
   status: 'running',
