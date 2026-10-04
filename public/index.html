@@ -28,6 +28,7 @@
     <div class="codebox" id="box">
       <p class="small">Your pairing code:</p>
       <div class="code" id="code">----</div>
+      <p class="small" id="waitmsg" style="display:none"></p>
       <button class="copy" id="copy"><i class="fa-regular fa-copy"></i> Copy Code</button>
       <p class="small linked" id="linked" style="display:none">&#10003; <b>Linked!</b> Bot is now running — type <b>.menu</b> in any chat.</p>
     </div>
@@ -49,11 +50,24 @@
     const $ = id => document.getElementById(id);
     let pollTimer = null;
 
+    // page reload ho jaye to bhi chalti hui request khud pakar lo (refresh-safe)
+    window.addEventListener('load', () => {
+      const saved = localStorage.getItem('saqiPair');
+      if (!saved) return;
+      try {
+        const o = JSON.parse(saved);
+        if (Date.now() - o.t > 10 * 60 * 1000) { localStorage.removeItem('saqiPair'); return; }
+        $('num').value = o.num || '';
+        showWait(); poll(o.id);
+      } catch (e) {}
+    });
+
     async function pair() {
       const num = $('num').value.replace(/[^0-9]/g, '');
       if (num.length < 10) return showErr('Number poora likho — country code ke sath (92300XXXXXXX)');
       $('btn').disabled = true; $('btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
       $('err').style.display = 'none'; $('box').classList.remove('show'); stopPoll();
+      localStorage.setItem('saqiPair', JSON.stringify({ id: num, num, t: Date.now() }));
 
       try {
         const r = await fetch('/api/pair', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ number: num }) });
@@ -61,10 +75,27 @@
         if (!d.ok) return showErr(d.error || 'Something went wrong — try again.');
 
         if (d.code) { showCode(d.code); }
-        else { $('btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparing code...'; poll(d.id); }
+        else {
+          $('btn').innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Code ban raha hy...';
+          showWait();
+          poll(d.id);
+        }
       } catch (e) { showErr('Server se connection nahi bana — dobara try karo.'); }
       $('btn').disabled = false; $('btn').innerHTML = '<i class="fa-solid fa-key"></i> Generate Pair Code';
     }
+
+    function showWait() {
+      $('box').classList.add('show');
+      $('code').innerHTML = '<span style="font-size:16px;letter-spacing:1px">⏳ Code ban raha hy...</span>';
+      $('waitmsg').style.display = 'block';
+      const t0 = Date.now();
+      clearInterval(window._wt);
+      window._wt = setInterval(() => {
+        const s = Math.round((Date.now() - t0) / 1000);
+        $('waitmsg').textContent = 'Aam tor par 4-5 second lagte hyn... (' + s + 's) — page khula chhoro, code khud aa jayega';
+      }, 1000);
+    }
+    function stopWait() { clearInterval(window._wt); $('waitmsg').style.display = 'none'; }
 
     function poll(id) {
       pollTimer = setInterval(async () => {
@@ -72,14 +103,14 @@
           const r = await fetch('/api/status/' + id);
           const d = await r.json();
           if (d.code) { showCode(d.code); stopPoll(); }
-          if (d.linked) { $('linked').style.display = 'block'; stopPoll(); }
+          if (d.linked) { localStorage.removeItem('saqiPair'); stopWait(); $('linked').style.display = 'block'; stopPoll(); }
         } catch (e) {}
       }, 1500);
       setTimeout(stopPoll, 300000);
     }
     function stopPoll() { if (pollTimer) clearInterval(pollTimer); pollTimer = null; }
 
-    function showCode(c) { $('code').textContent = c; $('box').classList.add('show'); }
+    function showCode(c) { localStorage.removeItem('saqiPair'); stopWait(); $('code').textContent = c; $('box').classList.add('show'); }
     function showErr(t) { $('err').textContent = 'X ' + t; $('err').style.display = 'block'; }
 
     $('btn').addEventListener('click', pair);
